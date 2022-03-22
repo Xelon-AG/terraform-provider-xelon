@@ -1,0 +1,26 @@
+linters:
+  disable-all: true
+  enable:
+    - deadcode
+    - errcheck
+    - gofmt
+    - goimports
+    - gosimple
+    - ineffassign
+    - misspell
+    - staticcheck
+    - structcheck
+    - unconvert
+    - unused
+    - varcheck
+    - vet
+
+linters-settings:
+  goimports:
+    local-prefixes: github.com/Xelon-AG/terraform-provider-xelon
+
+output:
+  format: tab
+
+run:
+  deadline: 10m

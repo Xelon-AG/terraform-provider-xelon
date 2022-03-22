@@ -2,10 +2,12 @@ module github.com/Xelon-AG/terraform-provider-xelon
 
 go 1.17
 
-require github.com/hashicorp/terraform-plugin-sdk/v2 v2.12.0
+require (
+	github.com/Xelon-AG/xelon-sdk-go v0.4.1-0.20220322031919-7e0d31715174
+	github.com/hashicorp/terraform-plugin-sdk/v2 v2.12.0
+)
 
 require (
-	github.com/Xelon-AG/xelon-sdk-go v0.4.1-0.20220320205625-bb876d11bf65 // indirect
 	github.com/agext/levenshtein v1.2.2 // indirect
 	github.com/apparentlymart/go-textseg/v13 v13.0.0 // indirect
 	github.com/fatih/color v1.7.0 // indirect
