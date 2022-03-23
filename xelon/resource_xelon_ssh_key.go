@@ -2,11 +2,11 @@ package xelon
 
 import (
 	"context"
-	"log"
 	"strconv"
 	"strings"
 
 	"github.com/Xelon-AG/xelon-sdk-go/xelon"
+	"github.com/hashicorp/terraform-plugin-log/tflog"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/validation"
@@ -14,6 +14,8 @@ import (
 
 func resourceXelonSSHKey() *schema.Resource {
 	return &schema.Resource{
+		Description: "Xelon resource to allow you to manage SSH keys",
+
 		CreateContext: resourceXelonSSHKeyCreate,
 		ReadContext:   resourceXelonSSHKeyRead,
 		UpdateContext: resourceXelonSSHKeyUpdate,
@@ -57,14 +59,14 @@ func resourceXelonSSHKeyCreate(ctx context.Context, d *schema.ResourceData, meta
 		},
 	}
 
-	log.Printf("[DEBUG] SSH key create configuration: %#v", createRequest.SSHKey)
+	tflog.Debug(ctx, "resourceXelonSSHKeyCreate", map[string]interface{}{"payload": createRequest})
 	key, _, err := client.SSHKeys.Create(ctx, createRequest)
 	if err != nil {
 		return diag.Errorf("Error creating SSH key: %s", err)
 	}
 
 	d.SetId(strconv.Itoa(key.ID))
-	log.Printf("[INFO] SSH key ID: %d", key.ID)
+	tflog.Info(ctx, "created SSH key", map[string]interface{}{"ssh_key_id": key.ID})
 
 	return resourceXelonSSHKeyRead(ctx, d, meta)
 }
@@ -109,7 +111,7 @@ func resourceXelonSSHKeyDelete(ctx context.Context, d *schema.ResourceData, meta
 		return diag.Errorf("Invalid SSH key id: %v", err)
 	}
 
-	log.Printf("[INFO] Deleting SSH key: %d", id)
+	tflog.Debug(ctx, "resourceXelonSSHKeyDelete", map[string]interface{}{"ssh_key_id": id})
 	_, err = client.SSHKeys.Delete(ctx, id)
 	if err != nil {
 		return diag.Errorf("Error deleting SSH key: %s", err)
