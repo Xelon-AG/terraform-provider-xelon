@@ -3,7 +3,7 @@ package main
 import (
 	"github.com/hashicorp/terraform-plugin-sdk/v2/plugin"
 
-	"github.com/Xelon-AG/terraform-provider-xelon/xelon"
+	"github.com/Xelon-AG/terraform-provider-xelon/internal/xelon"
 )
 
 func main() {
