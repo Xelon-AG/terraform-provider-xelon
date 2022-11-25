@@ -1,0 +1,60 @@
+archives:
+  - files:
+      - LICENSE
+      - README.md
+    format: zip
+    name_template: '{{ .ProjectName }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}'
+
+before:
+  hooks:
+    - go mod tidy
+
+builds:
+  - binary: '{{ .ProjectName }}_v{{ .Version }}'
+    flags:
+      - -trimpath
+    goarch:
+      - amd64
+      - '386'
+      - arm
+      - arm64
+    goos:
+      - freebsd
+      - windows
+      - linux
+      - darwin
+    ignore:
+      - goos: darwin
+        goarch: '386'
+    ldflags:
+      - "-s -w -X xelon.providerVersion={{.Version}}"
+    mod_timestamp: '{{ .CommitTimestamp }}'
+
+checksum:
+  algorithm: sha256
+  extra_files:
+    - glob: 'terraform-registry-manifest.json'
+      name_template: '{{ .ProjectName }}_{{ .Version }}_manifest.json'
+  name_template: '{{ .ProjectName }}_{{ .Version }}_SHA256SUMS'
+
+dist: build
+
+env:
+  - CGO_ENABLED=0
+
+signs:
+  - artifacts: checksum
+    args:
+      - "--batch"
+      - "--local-user"
+      - "{{ .Env.GPG_FINGERPRINT }}"
+      - "--output"
+      - "${signature}"
+      - "--detach-sign"
+      - "${artifact}"
+
+release:
+  extra_files:
+    - glob: 'terraform-registry-manifest.json'
+      name_template: '{{ .ProjectName }}_{{ .Version }}_manifest.json'
+  draft: true
