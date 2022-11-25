@@ -3,7 +3,7 @@ module github.com/Xelon-AG/terraform-provider-xelon
 go 1.19
 
 require (
-	github.com/Xelon-AG/xelon-sdk-go v0.5.1-0.20220712224026-b5b44830f1ab
+	github.com/Xelon-AG/xelon-sdk-go v0.7.0
 	github.com/hashicorp/terraform-plugin-log v0.7.0
 	github.com/hashicorp/terraform-plugin-sdk/v2 v2.24.1
 )
