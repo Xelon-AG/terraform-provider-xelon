@@ -8,12 +8,13 @@ import (
 
 // Config is configuration defined in the provider block.
 type Config struct {
-	BaseURL string
-	Token   string
+	BaseURL         string
+	Token           string
+	ProviderVersion string
 }
 
 func (c *Config) Client() *xelon.Client {
-	opts := []xelon.ClientOption{xelon.WithUserAgent(userAgent())}
+	opts := []xelon.ClientOption{xelon.WithUserAgent(c.userAgent())}
 	opts = append(opts, xelon.WithBaseURL(c.BaseURL))
 
 	client := xelon.NewClient(c.Token, opts...)
@@ -21,9 +22,9 @@ func (c *Config) Client() *xelon.Client {
 	return client
 }
 
-func userAgent() string {
+func (c *Config) userAgent() string {
 	name := "terraform-provider-xelon"
 	comment := "https://registry.terraform.io/providers/xelon-ag/xelon"
 
-	return fmt.Sprintf("%s/%s (+%s)", name, providerVersion, comment)
+	return fmt.Sprintf("%s/%s (+%s)", name, c.ProviderVersion, comment)
 }

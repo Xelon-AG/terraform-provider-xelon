@@ -6,8 +6,12 @@ import (
 	"github.com/Xelon-AG/terraform-provider-xelon/internal/xelon"
 )
 
+var (
+	version = "dev"
+)
+
 func main() {
 	plugin.Serve(&plugin.ServeOpts{
-		ProviderFunc: xelon.Provider,
+		ProviderFunc: xelon.New(version),
 	})
 }

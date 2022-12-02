@@ -7,8 +7,8 @@ import (
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
 )
 
-// Provider returns a schema.Provider for Xelon.
-func Provider() *schema.Provider {
+// New returns a schema.Provider for Xelon.
+func New(version string) func() *schema.Provider {
 	provider := &schema.Provider{
 		Schema: map[string]*schema.Schema{
 			"base_url": {
@@ -31,18 +31,19 @@ func Provider() *schema.Provider {
 	}
 
 	provider.ConfigureContextFunc = func(ctx context.Context, d *schema.ResourceData) (interface{}, diag.Diagnostics) {
-		terraformVersion := provider.TerraformVersion
-		return providerConfigure(ctx, d, terraformVersion)
+		return providerConfigure(ctx, d, version)
 	}
 
-	return provider
+	return func() *schema.Provider {
+		return provider
+	}
 }
 
-func providerConfigure(_ context.Context, d *schema.ResourceData, terraformVersion string) (interface{}, diag.Diagnostics) {
+func providerConfigure(_ context.Context, d *schema.ResourceData, version string) (interface{}, diag.Diagnostics) {
 	config := &Config{
-		BaseURL:          d.Get("base_url").(string),
-		Token:            d.Get("token").(string),
-		TerraformVersion: terraformVersion,
+		BaseURL:         d.Get("base_url").(string),
+		Token:           d.Get("token").(string),
+		ProviderVersion: version,
 	}
 
 	return config.Client(), nil
