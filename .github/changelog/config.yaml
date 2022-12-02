@@ -1,0 +1,30 @@
+style: github
+template: CHANGELOG.tpl.md
+info:
+  title: CHANGELOG
+  repository_url: https://github.com/Xelon-AG/terraform-provider-xelon
+options:
+  commits:
+    filters:
+      Type:
+        - feat
+        - fix
+        - docs
+        - chore
+        - refactor
+  commit_groups:
+    title_maps:
+      feat: Features
+      fix: Bug Fixes
+      docs: Documentation
+      chore: Maintaining
+      refactor: Code Refactoring
+  header:
+    pattern: "^(\\w*)(?:\\((.*)\\))?\\:\\s(.*)$"
+    pattern_maps:
+      - Type
+      - Scope
+      - Subject
+  notes:
+    keywords:
+      - BREAKING CHANGE
