@@ -2,7 +2,9 @@
 # Compiled sources              #
 #################################
 build/
-dist/
+out/
+output/
+.release/
 
 #################################
 # Terraform files               #
