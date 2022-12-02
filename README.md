@@ -1,33 +1,27 @@
-# Xelon Provider for Terraform
 <a href="https://terraform.io">
-  <img src="https://raw.githubusercontent.com/hashicorp/terraform-website/master/public/img/logo-hashicorp.svg" alt="Terraform logo" align="right" title="Terraform" height="50"/>
+    <img src=".github/terraform_logo.svg" alt="Terraform logo" title="Terraform" align="right" height="50" />
 </a>
 
-* [Getting Started & Documentation](https://registry.terraform.io/providers/xelon/xelon/latest/docs)
-* Mailing list: [Google Groups](http://groups.google.com/group/terraform-tool)
+# Xelon Terraform Provider
 
-This is the repository for [Xelon](https://www.xelon.ch/) Provider for Terraform,
-which one can use with Terraform to work with Xelon HQ cloud environment.
+Available in the [Terraform Registry](https://registry.terraform.io/providers/Xelon-AG/xelon/latest).
 
+The Xelon Terraform Provider is a plugin for Terraform that allows for the management
+of Xelon HQ cloud resources using Xelon REST API.
 
 ## Requirements
 
-- [Terraform](https://www.terraform.io/downloads.html) 0.12+
-- [Go](https://golang.org/doc/install) 1.17 (to build the provider plugin)
-
+- [Terraform](https://www.terraform.io/downloads.html) >= 0.12.x
 
 ## Using the provider
 
-See the [Xelon Provider documentation](https://insert-link-later)
-to get started using the Xelon provider.
-
+See the [Xelon Provider documentation](https://registry.terraform.io/providers/Xelon-AG/xelon/latest/docs)
+to get started using the provider.
 
 ## Contributing
 
-Terraform is the work of thousands of contributors. We appreciate your help!
+See the [`CONTRIBUTING.md`](.github/CONTRIBUTING.md) for more developer documentation.
 
-To contribute, please read the contribution guidelines: [Contributing to Terraform - Xelon Provider](.github/CONTRIBUTING.md)
+## License
 
-Issues on GitHub are intended to be related to bugs or feature requests with
-provider codebase. See https://www.terraform.io/docs/extend/community/index.html
-for a list of community resources to ask questions about Terraform.
+[Mozilla Public License v2.0](LICENSE)
