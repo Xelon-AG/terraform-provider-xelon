@@ -24,7 +24,7 @@ func (c *Config) Client() *xelon.Client {
 
 func (c *Config) userAgent() string {
 	name := "terraform-provider-xelon"
-	comment := "https://registry.terraform.io/providers/xelon-ag/xelon"
+	comment := "https://registry.terraform.io/providers/Xelon-AG/xelon"
 
 	return fmt.Sprintf("%s/%s (+%s)", name, c.ProviderVersion, comment)
 }

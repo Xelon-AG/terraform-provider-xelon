@@ -26,6 +26,7 @@ func New(version string) func() *schema.Provider {
 		},
 
 		ResourcesMap: map[string]*schema.Resource{
+			"xelon_device":  resourceXelonDevice(),
 			"xelon_ssh_key": resourceXelonSSHKey(),
 		},
 	}
