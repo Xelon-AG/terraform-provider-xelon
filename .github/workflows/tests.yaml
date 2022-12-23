@@ -6,7 +6,7 @@ on:
       - "CHANGELOG.md"
       - "README.md"
   push:
-    branches: [main]
+    branches: [ main ]
     paths-ignore:
       - "CHANGELOG.md"
       - "README.md"
@@ -63,3 +63,35 @@ jobs:
 
       - name: Run unit tests
         run: make test
+
+  docs:
+    name: documentation
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+
+      - name: Set up Go
+        uses: actions/setup-go@v3
+        with:
+          go-version-file: "go.mod"
+
+      - name: Set up cache
+        uses: actions/cache@v3
+        with:
+          path: |
+            ~/.cache/go-build
+            ~/go/pkg/mod
+          key: ${{ runner.os }}-go-${{ hashFiles('go.sum', 'tools/go.sum') }}
+          restore-keys: |
+            ${{ runner.os }}-go-
+
+      - name: Install tools
+        run: make tools
+
+      - name: Validate provider docs
+        run: |
+          make docs
+          git diff --compact-summary --exit-code || \
+            (echo; echo "Unexpected difference after code generation. Run 'make docs' and commit."; exit 1)
