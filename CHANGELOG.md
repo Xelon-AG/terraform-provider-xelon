@@ -1,4 +1,12 @@
 
+<a name="v0.2.0"></a>
+## v0.2.0 (2022-12-23)
+### Documentation
+* generate provider documentation with tfplugindocs
+* fix provider links for registry
+### Features
+* **resource/xelon_device**: add new resource for devices
+
 <a name="v0.1.0"></a>
 ## v0.1.0 (2022-12-02)
 ### Features
