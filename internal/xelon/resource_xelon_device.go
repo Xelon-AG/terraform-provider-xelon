@@ -233,7 +233,7 @@ func resourceXelonDeviceDelete(ctx context.Context, d *schema.ResourceData, meta
 }
 
 func fetchTenant(ctx context.Context, client *xelon.Client) (*xelon.Tenant, error) {
-	tenant, _, err := client.Tenant.Get(ctx)
+	tenant, _, err := client.Tenants.GetCurrent(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("getting tenant information: %w", err)
 	}

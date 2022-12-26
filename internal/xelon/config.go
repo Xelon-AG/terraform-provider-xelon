@@ -9,6 +9,7 @@ import (
 // Config is configuration defined in the provider block.
 type Config struct {
 	BaseURL         string
+	ClientID        string
 	Token           string
 	ProviderVersion string
 }
@@ -16,6 +17,10 @@ type Config struct {
 func (c *Config) Client() *xelon.Client {
 	opts := []xelon.ClientOption{xelon.WithUserAgent(c.userAgent())}
 	opts = append(opts, xelon.WithBaseURL(c.BaseURL))
+
+	if c.ClientID != "" {
+		opts = append(opts, xelon.WithClientID(c.ClientID))
+	}
 
 	client := xelon.NewClient(c.Token, opts...)
 

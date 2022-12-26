@@ -42,4 +42,5 @@ provider "xelon" {
 ### Optional
 
 - `base_url` (String) The base URL endpoint for Xelon HQ. Default is 'https://hq.xelon.ch/api/service/'.
+- `client_id` (String) The client ID for IP ranges.
 - `token` (String) The Xelon access token.
