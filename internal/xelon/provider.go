@@ -17,6 +17,12 @@ func New(version string) func() *schema.Provider {
 				DefaultFunc: schema.EnvDefaultFunc("XELON_BASE_URL", "https://hq.xelon.ch/api/service/"),
 				Description: "The base URL endpoint for Xelon HQ. Default is 'https://hq.xelon.ch/api/service/'.",
 			},
+			"client_id": {
+				Type:        schema.TypeString,
+				Optional:    true,
+				DefaultFunc: schema.EnvDefaultFunc("XELON_CLIENT_ID", nil),
+				Description: "The client ID for IP ranges.",
+			},
 			"token": {
 				Type:        schema.TypeString,
 				Optional:    true,
@@ -43,6 +49,7 @@ func New(version string) func() *schema.Provider {
 func providerConfigure(_ context.Context, d *schema.ResourceData, version string) (interface{}, diag.Diagnostics) {
 	config := &Config{
 		BaseURL:         d.Get("base_url").(string),
+		ClientID:        d.Get("client_id").(string),
 		Token:           d.Get("token").(string),
 		ProviderVersion: version,
 	}
