@@ -1,4 +1,10 @@
 
+<a name="v0.3.0"></a>
+## v0.3.0 (2022-12-26)
+### Features
+* add client_id support for config
+* **datasource/xelon_tenant**: add new data source for organizations
+
 <a name="v0.2.0"></a>
 ## v0.2.0 (2022-12-23)
 ### Documentation
