@@ -6,8 +6,8 @@ github.com/Microsoft/go-winio v0.4.16 h1:FtSW/jqD+l4ba5iPBj9CODVtgfYAD8w2wS923g/
 github.com/Microsoft/go-winio v0.4.16/go.mod h1:XB6nPKklQyQ7GC9LdcBEcBl8PF76WugXOPRXwdLnMv0=
 github.com/ProtonMail/go-crypto v0.0.0-20210428141323-04723f9f07d7 h1:YoJbenK9C67SkzkDfmQuVln04ygHj3vjZfd9FL+GmQQ=
 github.com/ProtonMail/go-crypto v0.0.0-20210428141323-04723f9f07d7/go.mod h1:z4/9nQmJSSwwds7ejkxaJwO37dru3geImFUdJlaLzQo=
-github.com/Xelon-AG/xelon-sdk-go v0.10.0 h1:VggnnExKVekgHGCV81yD66wvWOzZeN4MCu6b4p3ZKJQ=
-github.com/Xelon-AG/xelon-sdk-go v0.10.0/go.mod h1:2T0CJNTsFsOSz2/aW05OvldzVU3bqd/vpzaOiH34sHE=
+github.com/Xelon-AG/xelon-sdk-go v0.10.1 h1:BdmhsirBkEpZMbVEfa4sdfy6aTiEQiWvBoPHmdeG0wg=
+github.com/Xelon-AG/xelon-sdk-go v0.10.1/go.mod h1:2T0CJNTsFsOSz2/aW05OvldzVU3bqd/vpzaOiH34sHE=
 github.com/acomagu/bufpipe v1.0.3 h1:fxAGrHZTgQ9w5QqVItgzwj235/uYZYgbXitB+dLupOk=
 github.com/acomagu/bufpipe v1.0.3/go.mod h1:mxdxdup/WdsKVreO5GpW4+M/1CE2sMG4jeGJ2sYmHc4=
 github.com/agext/levenshtein v1.2.2 h1:0S/Yg6LYmFJ5stwQeRp6EeOcCbj7xiqQSdNelsXvaqE=
