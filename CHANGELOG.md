@@ -1,4 +1,12 @@
 
+<a name="v0.4.0"></a>
+## v0.4.0 (2022-12-27)
+### Features
+* **resource/xelon_persistent_storage**: implement extending storage by update method
+* **resource/xelon_persistent_storage**: add new resource for persistent storages
+### Maintaining
+* upgrade xelon-sdk-go to v0.10.1
+
 <a name="v0.3.0"></a>
 ## v0.3.0 (2022-12-26)
 ### Features
