@@ -13,6 +13,7 @@ import (
 )
 
 func TestAccResourceXelonSSHKey_basic(t *testing.T) {
+	var sshKey xelon.SSHKey
 	sshKeyName := fmt.Sprintf("%s-%s", accTestPrefix, acctest.RandString(10))
 	sshKeyPublic := "ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAAA/yupp+bxv9EKJmg5LNwu1foNjby/Nl++Nx2XTmi80BRRa4daLNQYJ7oQ=="
 
@@ -25,6 +26,7 @@ func TestAccResourceXelonSSHKey_basic(t *testing.T) {
 			{
 				Config: testAccResourceXelonSSHKeyConfig(sshKeyName, sshKeyPublic),
 				Check: resource.ComposeTestCheckFunc(
+					testAccCheckSSHKeyExists("xelon_ssh_key.test", &sshKey),
 					resource.TestCheckResourceAttrSet("xelon_ssh_key.test", "id"),
 					resource.TestCheckResourceAttrSet("xelon_ssh_key.test", "fingerprint"),
 					resource.TestCheckResourceAttr("xelon_ssh_key.test", "name", sshKeyName),
@@ -33,6 +35,35 @@ func TestAccResourceXelonSSHKey_basic(t *testing.T) {
 			},
 		},
 	})
+}
+
+func testAccCheckSSHKeyExists(n string, sshKey *xelon.SSHKey) resource.TestCheckFunc {
+	return func(s *terraform.State) error {
+		rs, ok := s.RootModule().Resources[n]
+		if !ok {
+			return fmt.Errorf("not found: %s", n)
+		}
+
+		if rs.Primary.ID == "" {
+			return fmt.Errorf("no SSH Key ID is set")
+		}
+
+		client := testAccProvider.Meta().(*xelon.Client)
+		retrievedSSHKeys, _, err := client.SSHKeys.List(context.Background())
+		if err != nil {
+			return err
+		}
+
+		for _, retrievedSSHKey := range retrievedSSHKeys {
+			sshKeyID := strconv.Itoa(retrievedSSHKey.ID)
+			if sshKeyID == rs.Primary.ID {
+				sshKey = &retrievedSSHKey
+				return nil
+			}
+		}
+
+		return fmt.Errorf("SSH Key not found")
+	}
 }
 
 func testAccCheckSSHKeyDestroy(s *terraform.State) error {
