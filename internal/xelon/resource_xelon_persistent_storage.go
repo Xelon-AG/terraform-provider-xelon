@@ -134,12 +134,33 @@ func resourceXelonPersistentStorageRead(ctx context.Context, d *schema.ResourceD
 }
 
 func resourceXelonPersistentStorageUpdate(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
-	// client := meta.(*xelon.Client)
+	client := meta.(*xelon.Client)
 
 	if d.HasChange("size") {
+		extendRequest := &xelon.PersistentStorageExtendRequest{
+			Size: d.Get("size").(int),
+		}
 
-		tflog.Warn(ctx, "resourceXelonPersistentStorageUpdate not yet implemented")
+		tflog.Debug(ctx, "resourceXelonPersistentStorageUpdate", map[string]interface{}{
+			"payload": extendRequest,
+		})
+		_, _, err := client.PersistentStorages.Extend(ctx, d.Id(), extendRequest)
+		if err != nil {
+			return diag.Errorf("extending persistent storage: %s", err)
+		}
 
+		tflog.Info(ctx, "extended persistent storage", map[string]interface{}{
+			"persistent_storage_id": d.Id(),
+		})
+
+		tenant, err := fetchTenant(ctx, client)
+		if err != nil {
+			return diag.FromErr(err)
+		}
+		err = storage.WaitStorageStateCreated(ctx, client, tenant.TenantID, d.Id())
+		if err != nil {
+			return diag.FromErr(err)
+		}
 	}
 
 	return resourceXelonPersistentStorageRead(ctx, d, meta)
