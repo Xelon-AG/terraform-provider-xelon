@@ -53,7 +53,7 @@ func New(version string) func() *schema.Provider {
 	}
 }
 
-func providerConfigure(_ context.Context, d *schema.ResourceData, version string) (interface{}, diag.Diagnostics) {
+func providerConfigure(ctx context.Context, d *schema.ResourceData, version string) (interface{}, diag.Diagnostics) {
 	config := &Config{
 		BaseURL:         d.Get("base_url").(string),
 		ClientID:        d.Get("client_id").(string),
@@ -61,5 +61,10 @@ func providerConfigure(_ context.Context, d *schema.ResourceData, version string
 		ProviderVersion: version,
 	}
 
-	return config.Client(), nil
+	client, err := config.Client(ctx)
+	if err != nil {
+		return nil, diag.Errorf("invalid provider config: %s", err)
+	}
+
+	return client, nil
 }
