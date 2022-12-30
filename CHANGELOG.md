@@ -1,4 +1,15 @@
 
+<a name="v0.5.0"></a>
+## v0.5.0 (2022-12-30)
+### Features
+* **resource/xelon_network**: add new resource for networks
+### Maintaining
+* upgrade xelon-sdk-go to v0.11.0
+* execute acceptance tests by pull request checks
+* **resource/xelon_network**: add acceptance tests
+* **resource/xelon_ssh_key**: verify if key exists when executing acceptance tests
+* **resource/xelon_ssh_key**: enable acceptance tests
+
 <a name="v0.4.0"></a>
 ## v0.4.0 (2022-12-27)
 ### Features
