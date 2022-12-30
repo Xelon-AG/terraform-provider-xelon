@@ -1,4 +1,10 @@
 
+<a name="v0.5.1"></a>
+## v0.5.1 (2022-12-30)
+### Maintaining
+* run sweepers in GitHub actions after acceptance tests
+* add sweepers to cleanup leftover infrastructure
+
 <a name="v0.5.0"></a>
 ## v0.5.0 (2022-12-30)
 ### Features
