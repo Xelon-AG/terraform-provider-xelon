@@ -3,7 +3,9 @@ package xelon
 import (
 	"context"
 	"fmt"
+	"log"
 	"strconv"
+	"strings"
 	"testing"
 
 	"github.com/Xelon-AG/xelon-sdk-go/xelon"
@@ -11,6 +13,43 @@ import (
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/resource"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/terraform"
 )
+
+func init() {
+	resource.AddTestSweepers("xelon_network", &resource.Sweeper{
+		Name: "xelon_network",
+		F:    testSweepNetworks,
+	})
+}
+
+func testSweepNetworks(region string) error {
+	ctx := context.Background()
+	client, err := sharedClient(region)
+	if err != nil {
+		return err
+	}
+
+	tenant, _, err := client.Tenants.GetCurrent(ctx)
+	if err != nil {
+		return fmt.Errorf("getting tenant: %s", err)
+	}
+
+	networks, _, err := client.Networks.List(ctx, tenant.TenantID)
+	if err != nil {
+		return fmt.Errorf("getting networks list: %s", err)
+	}
+
+	for _, network := range networks {
+		if strings.HasPrefix(network.Name, accTestPrefix) {
+			log.Printf("[DEBUG] Deleting xelon_network: %s (%d)", network.Name, network.ID)
+			_, err := client.Networks.Delete(ctx, network.ID)
+			if err != nil {
+				log.Printf("Error destroying %s during sweep: %s", network.Name, err)
+			}
+		}
+	}
+
+	return nil
+}
 
 func TestAccResourceXelonNetwork_basic(t *testing.T) {
 	var networkInfo xelon.NetworkInfo
