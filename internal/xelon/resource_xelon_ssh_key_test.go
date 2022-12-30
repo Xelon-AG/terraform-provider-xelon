@@ -3,7 +3,9 @@ package xelon
 import (
 	"context"
 	"fmt"
+	"log"
 	"strconv"
+	"strings"
 	"testing"
 
 	"github.com/Xelon-AG/xelon-sdk-go/xelon"
@@ -12,10 +14,45 @@ import (
 	"github.com/hashicorp/terraform-plugin-sdk/v2/terraform"
 )
 
+func init() {
+	resource.AddTestSweepers("xelon_ssh_key", &resource.Sweeper{
+		Name: "xelon_ssh_key",
+		F:    testSweepSSHKeys,
+	})
+}
+
+func testSweepSSHKeys(region string) error {
+	ctx := context.Background()
+	client, err := sharedClient(region)
+	if err != nil {
+		return err
+	}
+
+	sshKeys, _, err := client.SSHKeys.List(ctx)
+	if err != nil {
+		return fmt.Errorf("getting ssh keys list: %s", err)
+	}
+
+	for _, sshKey := range sshKeys {
+		if strings.HasPrefix(sshKey.Name, accTestPrefix) {
+			log.Printf("[DEBUG] Deleting xelon_ssh_key: %s (%d)", sshKey.Name, sshKey.ID)
+			_, err := client.SSHKeys.Delete(ctx, sshKey.ID)
+			if err != nil {
+				log.Printf("Error destroying %s during sweep: %s", sshKey.Name, err)
+			}
+		}
+	}
+
+	return nil
+}
+
 func TestAccResourceXelonSSHKey_basic(t *testing.T) {
 	var sshKey xelon.SSHKey
 	sshKeyName := fmt.Sprintf("%s-%s", accTestPrefix, acctest.RandString(10))
-	sshKeyPublic := "ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAAA/yupp+bxv9EKJmg5LNwu1foNjby/Nl++Nx2XTmi80BRRa4daLNQYJ7oQ=="
+	sshKeyPublic, _, err := acctest.RandSSHKeyPair("xelon@ssh-acceptance-test")
+	if err != nil {
+		t.Fatalf("could not generate test SSH key: %s", err)
+	}
 
 	resource.ParallelTest(t, resource.TestCase{
 		PreCheck:          func() { testAccPreCheck(t) },
