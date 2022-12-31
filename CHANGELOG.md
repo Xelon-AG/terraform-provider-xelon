@@ -1,4 +1,11 @@
 
+<a name="v0.6.0"></a>
+## v0.6.0 (2022-12-31)
+### Features
+* **datasource/xelon_cloud**: add new data source for clouds
+### Maintaining
+* upgrade xelon-sdk-go to v0.12.0
+
 <a name="v0.5.1"></a>
 ## v0.5.1 (2022-12-30)
 ### Maintaining
