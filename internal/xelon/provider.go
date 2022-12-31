@@ -32,6 +32,7 @@ func New(version string) func() *schema.Provider {
 		},
 
 		DataSourcesMap: map[string]*schema.Resource{
+			"xelon_cloud":  dataSourceXelonCloud(),
 			"xelon_tenant": dataSourceXelonTenant(),
 		},
 
