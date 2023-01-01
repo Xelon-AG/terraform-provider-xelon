@@ -1,4 +1,9 @@
 
+<a name="v0.6.1"></a>
+## v0.6.1 (2023-01-01)
+### Documentation
+* generate examples for all resources
+
 <a name="v0.6.0"></a>
 ## v0.6.0 (2022-12-31)
 ### Features
