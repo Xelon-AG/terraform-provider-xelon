@@ -1,4 +1,11 @@
 
+<a name="v0.6.2"></a>
+## v0.6.2 (2023-02-24)
+### Maintaining
+* **deps**: bump golang.org/x/net from 0.6.0 to 0.7.0
+* **deps**: upgrade dependencies
+* **tools**: upgrade tools dependencies
+
 <a name="v0.6.1"></a>
 ## v0.6.1 (2023-01-01)
 ### Documentation
