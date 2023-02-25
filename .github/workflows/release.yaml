@@ -41,7 +41,7 @@ jobs:
       - name: Run GoReleaser
         uses: goreleaser/goreleaser-action@v3
         with:
-          args: release --config .github/goreleaser.yaml --rm-dist --release-notes=.release/DRAFT.md
+          args: release --config .github/goreleaser.yaml --clean --release-notes=.release/DRAFT.md
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GPG_FINGERPRINT: ${{ steps.import_gpg.outputs.fingerprint }}
