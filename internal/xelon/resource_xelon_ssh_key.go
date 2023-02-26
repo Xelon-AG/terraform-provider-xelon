@@ -2,6 +2,7 @@ package xelon
 
 import (
 	"context"
+	"fmt"
 	"strconv"
 	"strings"
 
@@ -20,6 +21,8 @@ func resourceXelonSSHKey() *schema.Resource {
 		ReadContext:   resourceXelonSSHKeyRead,
 		UpdateContext: resourceXelonSSHKeyUpdate,
 		DeleteContext: resourceXelonSSHKeyDelete,
+
+		SchemaVersion: 0,
 
 		Schema: map[string]*schema.Schema{
 			"fingerprint": {
@@ -59,14 +62,21 @@ func resourceXelonSSHKeyCreate(ctx context.Context, d *schema.ResourceData, meta
 		},
 	}
 
-	tflog.Debug(ctx, "resourceXelonSSHKeyCreate", map[string]interface{}{"payload": createRequest})
+	tflog.Debug(ctx, "Creating Xelon SSH Key", map[string]interface{}{
+		"configuration": createRequest,
+	})
+
 	key, _, err := client.SSHKeys.Create(ctx, createRequest)
 	if err != nil {
-		return diag.Errorf("Error creating SSH key: %s", err)
+		return diag.FromErr(fmt.Errorf("creating Xelon SSH Key: %w", err))
 	}
 
 	d.SetId(strconv.Itoa(key.ID))
-	tflog.Info(ctx, "created SSH key", map[string]interface{}{"ssh_key_id": key.ID})
+
+	tflog.Info(ctx, "Created Xelon SSH Key", map[string]interface{}{
+		"id":          key.ID,
+		"fingerprint": key.Fingerprint,
+	})
 
 	return resourceXelonSSHKeyRead(ctx, d, meta)
 }
@@ -76,12 +86,12 @@ func resourceXelonSSHKeyRead(ctx context.Context, d *schema.ResourceData, meta i
 
 	id, err := strconv.Atoi(d.Id())
 	if err != nil {
-		return diag.Errorf("Invalid SSH key id: %v", err)
+		return diag.FromErr(fmt.Errorf("invalid Xelon SSH Key ID: %w", err))
 	}
 
 	keys, _, err := client.SSHKeys.List(ctx)
 	if err != nil {
-		diag.Errorf("Error retrieving SSH key: %s", err)
+		return diag.FromErr(fmt.Errorf("retrieving Xelon SSH Keys: %w", err))
 	}
 	for _, key := range keys {
 		// will be refactored later when get method for single key is available
@@ -108,15 +118,19 @@ func resourceXelonSSHKeyDelete(ctx context.Context, d *schema.ResourceData, meta
 
 	id, err := strconv.Atoi(d.Id())
 	if err != nil {
-		return diag.Errorf("Invalid SSH key id: %v", err)
+		return diag.FromErr(fmt.Errorf("invalid Xelon SSH Key ID: %w", err))
 	}
 
-	tflog.Debug(ctx, "resourceXelonSSHKeyDelete", map[string]interface{}{"ssh_key_id": id})
+	tflog.Debug(ctx, "Deleting Xelon SSH Key", map[string]interface{}{
+		"id": id,
+	})
+
 	_, err = client.SSHKeys.Delete(ctx, id)
 	if err != nil {
-		return diag.Errorf("Error deleting SSH key: %s", err)
+		return diag.FromErr(fmt.Errorf("deleting Xelon SSH Key: %w", err))
 	}
 
 	d.SetId("")
+
 	return nil
 }

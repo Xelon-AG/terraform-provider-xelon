@@ -1,9 +1,12 @@
 package xelon
 
 import (
+	"context"
+	"errors"
 	"fmt"
 
 	"github.com/Xelon-AG/xelon-sdk-go/xelon"
+	"github.com/hashicorp/terraform-plugin-log/tflog"
 )
 
 // Config is configuration defined in the provider block.
@@ -14,7 +17,11 @@ type Config struct {
 	ProviderVersion string
 }
 
-func (c *Config) Client() *xelon.Client {
+func (c *Config) Client(ctx context.Context) (*xelon.Client, error) {
+	if c.Token == "" {
+		return nil, errors.New("token must be set")
+	}
+
 	opts := []xelon.ClientOption{xelon.WithUserAgent(c.userAgent())}
 	opts = append(opts, xelon.WithBaseURL(c.BaseURL))
 
@@ -24,7 +31,12 @@ func (c *Config) Client() *xelon.Client {
 
 	client := xelon.NewClient(c.Token, opts...)
 
-	return client
+	tflog.Info(ctx, "Xelon SDK client configured", map[string]interface{}{
+		"base_url":  c.BaseURL,
+		"client_id": c.ClientID,
+	})
+
+	return client, nil
 }
 
 func (c *Config) userAgent() string {

@@ -1,6 +1,7 @@
 package xelon
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"testing"
@@ -31,5 +32,5 @@ func sharedClient(_ string) (*xelon.Client, error) {
 		ProviderVersion: "sweeper",
 	}
 
-	return config.Client(), nil
+	return config.Client(context.Background())
 }
