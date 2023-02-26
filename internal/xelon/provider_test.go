@@ -2,8 +2,10 @@ package xelon
 
 import (
 	"os"
+	"regexp"
 	"testing"
 
+	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/resource"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
 	"github.com/stretchr/testify/assert"
 )
@@ -23,6 +25,26 @@ func TestProvider(t *testing.T) {
 	assert.NoError(t, err)
 }
 
+func TestProvider_MissingTokenAttribute(t *testing.T) {
+	resource.UnitTest(t, resource.TestCase{
+		ProviderFactories: testAccProviderFactories,
+
+		Steps: []resource.TestStep{
+			{
+				Config: `
+provider "xelon" {
+  token = ""
+}
+data "xelon_cloud" "hcp" {
+  name = "cloud name"
+}
+`,
+				ExpectError: regexp.MustCompile("invalid provider config: token must be set"),
+			},
+		},
+	})
+
+}
 func testAccPreCheck(t *testing.T) {
 	if v := os.Getenv("XELON_BASE_URL"); v == "" {
 		t.Fatal("XELON_BASE_URL must be set for acceptance tests")
