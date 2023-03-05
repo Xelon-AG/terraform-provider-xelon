@@ -21,7 +21,7 @@ terraform {
   required_providers {
     xelon = {
       source  = "Xelon-AG/xelon"
-      version = ">= 0.1.0"
+      version = ">= 0.7.0"
     }
   }
 }
@@ -41,6 +41,6 @@ provider "xelon" {
 
 ### Optional
 
-- `base_url` (String) The base URL endpoint for Xelon HQ. Default is 'https://hq.xelon.ch/api/service/'.
-- `client_id` (String) The client ID for IP ranges.
-- `token` (String) The Xelon access token.
+- `base_url` (String) The base URL endpoint for Xelon HQ. Default is `https://hq.xelon.ch/api/service/`. Alternatively, can be configured using the `XELON_BASE_URL` environment variable.
+- `client_id` (String) The client ID for IP ranges. Alternatively, can be configured using the `XELON_CLIENT_ID` environment variable.
+- `token` (String) The Xelon access token. Alternatively, can be configured using the `XELON_TOKEN` environment variable.
