@@ -15,19 +15,22 @@ func New(version string) func() *schema.Provider {
 				Type:        schema.TypeString,
 				Optional:    true,
 				DefaultFunc: schema.EnvDefaultFunc("XELON_BASE_URL", "https://hq.xelon.ch/api/service/"),
-				Description: "The base URL endpoint for Xelon HQ. Default is 'https://hq.xelon.ch/api/service/'.",
+				Description: "The base URL endpoint for Xelon HQ. Default is `https://hq.xelon.ch/api/service/`. " +
+					"Alternatively, can be configured using the `XELON_BASE_URL` environment variable.",
 			},
 			"client_id": {
 				Type:        schema.TypeString,
 				Optional:    true,
 				DefaultFunc: schema.EnvDefaultFunc("XELON_CLIENT_ID", nil),
-				Description: "The client ID for IP ranges.",
+				Description: "The client ID for IP ranges. Alternatively, can be configured " +
+					"using the `XELON_CLIENT_ID` environment variable.",
 			},
 			"token": {
 				Type:        schema.TypeString,
 				Optional:    true,
 				DefaultFunc: schema.EnvDefaultFunc("XELON_TOKEN", nil),
-				Description: "The Xelon access token.",
+				Description: "The Xelon access token. Alternatively, can be configured " +
+					"using the `XELON_TOKEN` environment variable.",
 			},
 		},
 

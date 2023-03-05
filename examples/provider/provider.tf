@@ -2,7 +2,7 @@ terraform {
   required_providers {
     xelon = {
       source  = "Xelon-AG/xelon"
-      version = ">= 0.1.0"
+      version = ">= 0.7.0"
     }
   }
 }
