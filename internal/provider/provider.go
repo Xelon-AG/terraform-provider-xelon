@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/Xelon-AG/xelon-sdk-go/xelon"
 	"github.com/hashicorp/terraform-plugin-framework/datasource"
 	"github.com/hashicorp/terraform-plugin-framework/path"
 	"github.com/hashicorp/terraform-plugin-framework/provider"
@@ -13,6 +12,8 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/types"
 	"github.com/hashicorp/terraform-plugin-log/tflog"
+
+	"github.com/Xelon-AG/xelon-sdk-go/xelon"
 )
 
 const (
@@ -126,7 +127,9 @@ func (p *xelonProvider) Configure(ctx context.Context, request provider.Configur
 }
 
 func (p *xelonProvider) DataSources(_ context.Context) []func() datasource.DataSource {
-	return []func() datasource.DataSource{}
+	return []func() datasource.DataSource{
+		NewNetworkDataSource,
+	}
 }
 
 func (p *xelonProvider) Resources(_ context.Context) []func() resource.Resource {
