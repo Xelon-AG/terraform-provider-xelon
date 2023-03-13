@@ -43,8 +43,8 @@ data "xelon_cloud" "hcp" {
 			},
 		},
 	})
-
 }
+
 func testAccPreCheck(t *testing.T) {
 	if v := os.Getenv("XELON_BASE_URL"); v == "" {
 		t.Fatal("XELON_BASE_URL must be set for acceptance tests")
