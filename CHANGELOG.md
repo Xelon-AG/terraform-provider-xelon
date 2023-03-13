@@ -1,4 +1,21 @@
 
+<a name="v0.7.0"></a>
+## v0.7.0 (2023-03-13)
+### Code Refactoring
+* standardize logging by resource methods
+### Documentation
+* describe optional envvars for provider configuration
+### Features
+* **datasource/xelon_network**: add new data source for networks
+* **provider**: make framework usable
+### Maintaining
+* update template for pull requests
+* upgrade protocol version from 5 to 6
+* add template for GitHub pull requests
+* add template for GitHub issues
+* log info when configuring SDK client
+* replace deprecated GoReleaser options
+
 <a name="v0.6.2"></a>
 ## v0.6.2 (2023-02-24)
 ### Maintaining
