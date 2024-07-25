@@ -4,6 +4,8 @@ PROJECT_NAME := terraform-provider-xelon
 # Build variables
 .DEFAULT_GOAL = test
 BUILD_DIR := build
+TOOLS_DIR := $(shell pwd)/tools
+TOOLS_BIN_DIR := ${TOOLS_DIR}/bin
 DEV_GOARCH := $(shell go env GOARCH)
 DEV_GOOS := $(shell go env GOOS)
 EXE =
@@ -16,9 +18,9 @@ endif
 .PHONY: tools
 tools:
 	@echo "==> Installing required tooling..."
-	@cd tools && go install github.com/git-chglog/git-chglog/cmd/git-chglog
-	@cd tools && go install github.com/golangci/golangci-lint/cmd/golangci-lint
-	@cd tools && go install github.com/hashicorp/terraform-plugin-docs/cmd/tfplugindocs
+	@cd ${TOOLS_DIR} && GOBIN=${TOOLS_BIN_DIR} go install github.com/git-chglog/git-chglog/cmd/git-chglog
+	@cd ${TOOLS_DIR} && GOBIN=${TOOLS_BIN_DIR} go install github.com/golangci/golangci-lint/cmd/golangci-lint
+	@cd ${TOOLS_DIR} && GOBIN=${TOOLS_BIN_DIR} go install github.com/hashicorp/terraform-plugin-docs/cmd/tfplugindocs
 
 ## clean: Delete the build directory.
 .PHONY: clean
@@ -30,7 +32,7 @@ clean:
 .PHONY: lint
 lint:
 	@echo "==> Linting code with 'golangci-lint'..."
-	@golangci-lint run ./...
+	@${TOOLS_BIN_DIR}/golangci-lint run
 
 ## test: Run all unit tests.
 .PHONY: test
@@ -68,8 +70,8 @@ docs:
 	@rm -f docs/data-sources/*.md
 	@rm -f docs/resources/*.md
 	@rm -f docs/index.md
-	@tfplugindocs generate
-	@tfplugindocs validate
+	@${TOOLS_BIN_DIR}/tfplugindocs generate
+	@${TOOLS_BIN_DIR}/tfplugindocs validate
 
 
 help: Makefile

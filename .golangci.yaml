@@ -1,16 +1,23 @@
 linters:
   disable-all: true
   enable:
+    - durationcheck
     - errcheck
+    - exportloopref
+    - godot
     - gofmt
     - goimports
     - gosimple
+    - govet
     - ineffassign
+    - makezero
     - misspell
+    - nilerr
+    - predeclared
     - staticcheck
+    - tenv
     - unconvert
     - unused
-    - vet
 
 linters-settings:
   goimports:
@@ -19,7 +26,9 @@ linters-settings:
       github.com/Xelon-AG/xelon-sdk-go
 
 output:
-  format: tab
+  formats:
+    - format: tab
+  show-stats: true
 
 run:
-  deadline: 10m
+  timeout: 10m
