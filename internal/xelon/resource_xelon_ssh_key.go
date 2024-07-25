@@ -6,11 +6,12 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/Xelon-AG/xelon-sdk-go/xelon"
 	"github.com/hashicorp/terraform-plugin-log/tflog"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/validation"
+
+	"github.com/Xelon-AG/xelon-sdk-go/xelon"
 )
 
 func resourceXelonSSHKey() *schema.Resource {
@@ -43,8 +44,8 @@ func resourceXelonSSHKey() *schema.Resource {
 				Required:    true,
 				ForceNew:    true,
 				Description: "The text of the public key",
-				DiffSuppressFunc: func(k, old, new string, d *schema.ResourceData) bool {
-					return strings.TrimSpace(old) == strings.TrimSpace(new)
+				DiffSuppressFunc: func(k, oldValue, newValue string, d *schema.ResourceData) bool {
+					return strings.TrimSpace(oldValue) == strings.TrimSpace(newValue)
 				},
 				ValidateFunc: validation.NoZeroValues,
 			},

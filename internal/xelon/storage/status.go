@@ -3,8 +3,9 @@ package storage
 import (
 	"context"
 
+	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/retry"
+
 	"github.com/Xelon-AG/xelon-sdk-go/xelon"
-	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/resource"
 )
 
 const (
@@ -12,7 +13,7 @@ const (
 	persistentStorageStateInProgress = "InProgress"
 )
 
-func statusStorageState(ctx context.Context, client *xelon.Client, tenantID, localID string) resource.StateRefreshFunc {
+func statusStorageState(ctx context.Context, client *xelon.Client, tenantID, localID string) retry.StateRefreshFunc {
 	return func() (interface{}, string, error) {
 		storage, _, err := client.PersistentStorages.Get(ctx, tenantID, localID)
 		if err != nil {
