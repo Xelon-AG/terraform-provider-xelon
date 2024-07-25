@@ -30,5 +30,3 @@ data "xelon_cloud" "hcp" {
 - `cloud_id` (Number) The ID of the cloud.
 - `id` (String) The ID of this resource.
 - `type` (Number) The cloud type. `1` - private, `2` - public, `3` - whitelist.
-
-

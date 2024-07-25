@@ -44,5 +44,3 @@ data "xelon_network" "wan" {
 Optional:
 
 - `network_id` (Number) The ID of the specific network, must be a positive number.
-
-

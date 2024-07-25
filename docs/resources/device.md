@@ -71,5 +71,3 @@ Required:
 - `nic_key` (Number) Network interface card (NIC) key.
 - `nic_number` (Number) Network interface card (NIC) number.
 - `nic_unit` (Number) Network interface card (NIC) unit.
-
-

@@ -38,5 +38,3 @@ data "xelon_cloud" "hcp" {
 - `formatted` (Boolean) True, if the persistent storage is formatted.
 - `id` (String) The ID of this resource.
 - `uuid` (String) The UUID of the persistent storage.
-
-

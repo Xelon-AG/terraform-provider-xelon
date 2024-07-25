@@ -25,5 +25,3 @@ data "xelon_tenant" "current" {}
 - `id` (String) The ID of this resource.
 - `name` (String) The name of the organization.
 - `tenant_id` (String) The ID of the organization.
-
-

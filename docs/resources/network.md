@@ -45,5 +45,3 @@ data "xelon_cloud" "hcp" {
 
 - `id` (String) The ID of this resource.
 - `netmask` (String) The netmask of the network.
-
-
