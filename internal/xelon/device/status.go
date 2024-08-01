@@ -4,9 +4,10 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/Xelon-AG/xelon-sdk-go/xelon"
 	"github.com/hashicorp/terraform-plugin-log/tflog"
-	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/resource"
+	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/retry"
+
+	"github.com/Xelon-AG/xelon-sdk-go/xelon"
 )
 
 const (
@@ -17,7 +18,7 @@ const (
 	deviceVMWareToolsStatusNotRunning = "NotRunning"
 )
 
-func statusPowerState(ctx context.Context, client *xelon.Client, tenantID, localVMID string) resource.StateRefreshFunc {
+func statusPowerState(ctx context.Context, client *xelon.Client, tenantID, localVMID string) retry.StateRefreshFunc {
 	return func() (interface{}, string, error) {
 		deviceRoot, resp, err := client.Devices.Get(ctx, tenantID, localVMID)
 		if err != nil {
@@ -46,7 +47,7 @@ func statusPowerState(ctx context.Context, client *xelon.Client, tenantID, local
 	}
 }
 
-func statusVMWareToolsStatus(ctx context.Context, client *xelon.Client, tenantID, localVMID string) resource.StateRefreshFunc {
+func statusVMWareToolsStatus(ctx context.Context, client *xelon.Client, tenantID, localVMID string) retry.StateRefreshFunc {
 	return func() (interface{}, string, error) {
 		deviceRoot, _, err := client.Devices.Get(ctx, tenantID, localVMID)
 		if err != nil {

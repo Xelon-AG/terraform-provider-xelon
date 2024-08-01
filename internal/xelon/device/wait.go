@@ -5,12 +5,13 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/retry"
+
 	"github.com/Xelon-AG/xelon-sdk-go/xelon"
-	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/resource"
 )
 
 func WaitPowerStateOn(ctx context.Context, client *xelon.Client, tenantID, localVMID string) error {
-	stateConf := &resource.StateChangeConf{
+	stateConf := &retry.StateChangeConf{
 		Pending: []string{devicePowerStateOff},
 		Target:  []string{devicePowerStateOn},
 		Timeout: 10 * time.Minute,
@@ -26,7 +27,7 @@ func WaitPowerStateOn(ctx context.Context, client *xelon.Client, tenantID, local
 }
 
 func WaitPowerStateOff(ctx context.Context, client *xelon.Client, tenantID, localVMID string) error {
-	stateConf := &resource.StateChangeConf{
+	stateConf := &retry.StateChangeConf{
 		Pending: []string{devicePowerStateOn},
 		Target:  []string{devicePowerStateOff},
 		Timeout: 10 * time.Minute,
@@ -42,7 +43,7 @@ func WaitPowerStateOff(ctx context.Context, client *xelon.Client, tenantID, loca
 }
 
 func WaitVMWareToolsStatusRunning(ctx context.Context, client *xelon.Client, tenantID, localVMID string) error {
-	stateConf := &resource.StateChangeConf{
+	stateConf := &retry.StateChangeConf{
 		Pending: []string{deviceVMWareToolsStatusNotRunning},
 		Target:  []string{deviceVMWareToolsStatusRunning},
 		Timeout: 10 * time.Minute,

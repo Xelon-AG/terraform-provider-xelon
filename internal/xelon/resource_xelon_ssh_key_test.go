@@ -8,10 +8,11 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/hashicorp/terraform-plugin-testing/helper/acctest"
+	"github.com/hashicorp/terraform-plugin-testing/helper/resource"
+	"github.com/hashicorp/terraform-plugin-testing/terraform"
+
 	"github.com/Xelon-AG/xelon-sdk-go/xelon"
-	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/acctest"
-	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/resource"
-	"github.com/hashicorp/terraform-plugin-sdk/v2/terraform"
 )
 
 func init() {
@@ -92,6 +93,7 @@ func testAccCheckSSHKeyExists(n string, sshKey *xelon.SSHKey) resource.TestCheck
 		}
 
 		for _, retrievedSSHKey := range retrievedSSHKeys {
+			retrievedSSHKey := retrievedSSHKey
 			sshKeyID := strconv.Itoa(retrievedSSHKey.ID)
 			if sshKeyID == rs.Primary.ID {
 				sshKey = &retrievedSSHKey

@@ -5,12 +5,13 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/retry"
+
 	"github.com/Xelon-AG/xelon-sdk-go/xelon"
-	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/resource"
 )
 
 func WaitStorageStateCreated(ctx context.Context, client *xelon.Client, tenantID, localID string) error {
-	stateConf := &resource.StateChangeConf{
+	stateConf := &retry.StateChangeConf{
 		Pending: []string{persistentStorageStateInProgress},
 		Target:  []string{persistentStorageStateCreated},
 		Timeout: 10 * time.Minute,

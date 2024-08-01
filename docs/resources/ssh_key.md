@@ -31,5 +31,3 @@ resource "xelon_ssh_key" "admin" {
 
 - `fingerprint` (String) The fingerprint of the SSH key
 - `id` (String) The ID of this resource.
-
-
