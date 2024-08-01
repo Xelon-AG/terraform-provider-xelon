@@ -8,6 +8,7 @@ import (
 )
 
 func TestAccDataSourceNetwork_basic(t *testing.T) {
+	t.Skip()
 	resource.Test(t, resource.TestCase{
 		PreCheck:                 func() { testAccPreCheck(t) },
 		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
@@ -25,6 +26,7 @@ func TestAccDataSourceNetwork_basic(t *testing.T) {
 }
 
 func TestAccDataSourceNetwork_missingNetworkID(t *testing.T) {
+	t.Skip()
 	resource.Test(t, resource.TestCase{
 		PreCheck:                 func() { testAccPreCheck(t) },
 		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,

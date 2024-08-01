@@ -152,14 +152,14 @@ func (d *networkDataSource) Read(ctx context.Context, request datasource.ReadReq
 	}
 
 	network := n.Details
-	data.CloudID = types.Int64Value(int64(network.HVSystemID))
+	data.CloudID = types.Int64Value(int64(n.CloudID))
 	data.DNSPrimary = types.StringValue(network.DNSPrimary)
 	data.DNSSecondary = types.StringValue(network.DNSSecondary)
-	data.ID = types.StringValue(strconv.Itoa(network.NetworkID))
+	data.ID = types.StringValue(strconv.Itoa(network.ID))
 	data.Name = types.StringValue(network.Name)
 	data.Netmask = types.StringValue(network.Netmask)
 	data.Network = types.StringValue(network.Network)
-	data.NetworkID = types.Int64Value(int64(network.NetworkID))
+	data.NetworkID = types.Int64Value(int64(network.ID))
 
 	diags = response.State.Set(ctx, &data)
 	response.Diagnostics.Append(diags...)

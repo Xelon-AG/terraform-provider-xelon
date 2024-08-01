@@ -145,7 +145,7 @@ func resourceXelonNetworkRead(ctx context.Context, d *schema.ResourceData, meta 
 	}
 
 	network := n.Details
-	_ = d.Set("cloud_id", network.HVSystemID)
+	_ = d.Set("cloud_id", n.CloudID)
 	_ = d.Set("dns_primary", network.DNSPrimary)
 	_ = d.Set("dns_secondary", network.DNSSecondary)
 	_ = d.Set("gateway", network.DefaultGateway)
@@ -170,7 +170,6 @@ func resourceXelonNetworkUpdate(ctx context.Context, d *schema.ResourceData, met
 			DefaultGateway: d.Get("gateway").(string),
 			DNSPrimary:     d.Get("dns_primary").(string),
 			DNSSecondary:   d.Get("dns_secondary").(string),
-			HVSystemID:     d.Get("cloud_id").(int),
 			Name:           d.Get("name").(string),
 			Network:        d.Get("network").(string),
 			Type:           d.Get("type").(string),

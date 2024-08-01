@@ -8,10 +8,11 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/hashicorp/terraform-plugin-testing/helper/acctest"
+	"github.com/hashicorp/terraform-plugin-testing/helper/resource"
+	"github.com/hashicorp/terraform-plugin-testing/terraform"
+
 	"github.com/Xelon-AG/xelon-sdk-go/xelon"
-	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/acctest"
-	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/resource"
-	"github.com/hashicorp/terraform-plugin-sdk/v2/terraform"
 )
 
 func init() {
@@ -65,17 +66,18 @@ func TestAccResourceXelonNetwork_basic(t *testing.T) {
 				Config: testAccResourceXelonNetworkConfig(networkName),
 				Check: resource.ComposeTestCheckFunc(
 					testAccCheckNetworkExists("xelon_network.test", &networkInfo),
-					resource.TestCheckResourceAttrSet("xelon_network.test", "id"),
-					resource.TestCheckResourceAttrSet("xelon_network.test", "netmask"),
+					resource.TestCheckResourceAttr("xelon_network.test", "cloud_id", "8"),
 					resource.TestCheckResourceAttr("xelon_network.test", "gateway", "10.11.12.1"),
 					resource.TestCheckResourceAttr("xelon_network.test", "name", networkName),
+					resource.TestCheckResourceAttrSet("xelon_network.test", "id"),
+					resource.TestCheckResourceAttrSet("xelon_network.test", "netmask"),
 				),
 			},
 		},
 	})
 }
 
-func TestAccResourceXelonNetwork_changeDNS(t *testing.T) {
+func TestAccResourceXelonNetwork_update(t *testing.T) {
 	var networkInfo xelon.NetworkInfo
 	networkName := fmt.Sprintf("%s-%s", accTestPrefix, acctest.RandString(10))
 
@@ -89,19 +91,20 @@ func TestAccResourceXelonNetwork_changeDNS(t *testing.T) {
 				Config: testAccResourceXelonNetworkConfig(networkName),
 				Check: resource.ComposeTestCheckFunc(
 					testAccCheckNetworkExists("xelon_network.test", &networkInfo),
-					resource.TestCheckResourceAttrSet("xelon_network.test", "id"),
-					resource.TestCheckResourceAttrSet("xelon_network.test", "netmask"),
 					resource.TestCheckResourceAttr("xelon_network.test", "dns_primary", "1.1.1.1"),
 					resource.TestCheckResourceAttr("xelon_network.test", "dns_secondary", "2.2.2.2"),
 					resource.TestCheckResourceAttr("xelon_network.test", "name", networkName),
+					resource.TestCheckResourceAttrSet("xelon_network.test", "id"),
+					resource.TestCheckResourceAttrSet("xelon_network.test", "netmask"),
 				),
 			},
 			{
-				Config: testAccResourceXelonNetworkConfig_changeDNS(networkName),
+				Config: testAccResourceXelonNetworkConfigChangeDNS(networkName),
 				Check: resource.ComposeTestCheckFunc(
 					testAccCheckNetworkExists("xelon_network.test", &networkInfo),
 					resource.TestCheckResourceAttr("xelon_network.test", "dns_primary", "8.8.8.8"),
 					resource.TestCheckResourceAttr("xelon_network.test", "dns_secondary", "8.8.8.8"),
+					resource.TestCheckResourceAttr("xelon_network.test", "name", networkName),
 				),
 			},
 		},
@@ -136,7 +139,7 @@ func testAccCheckNetworkExists(n string, networkInfo *xelon.NetworkInfo) resourc
 			return err
 		}
 
-		if retrievedNetworkInfo.Details.NetworkID != networkID {
+		if retrievedNetworkInfo.Details.ID != networkID {
 			return fmt.Errorf("network not found")
 		}
 
@@ -175,7 +178,7 @@ func testAccCheckNetworkDestroy(s *terraform.State) error {
 func testAccResourceXelonNetworkConfig(name string) string {
 	return fmt.Sprintf(`
 resource "xelon_network" "test" {
-  cloud_id      = 4
+  cloud_id      = 8
   dns_primary   = "1.1.1.1"
   dns_secondary = "2.2.2.2"
   gateway       = "10.11.12.1"
@@ -186,10 +189,10 @@ resource "xelon_network" "test" {
 `, name)
 }
 
-func testAccResourceXelonNetworkConfig_changeDNS(name string) string {
+func testAccResourceXelonNetworkConfigChangeDNS(name string) string {
 	return fmt.Sprintf(`
 resource "xelon_network" "test" {
-  cloud_id      = 4
+  cloud_id      = 8
   dns_primary   = "8.8.8.8"
   dns_secondary = "8.8.8.8"
   gateway       = "10.11.12.1"
