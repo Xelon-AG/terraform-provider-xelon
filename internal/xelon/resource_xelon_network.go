@@ -101,7 +101,6 @@ func resourceXelonNetworkCreate(ctx context.Context, d *schema.ResourceData, met
 		return diag.Errorf("listing networks, %s", err)
 	}
 	for _, n := range networks {
-		n := n
 		if n.Name == d.Get("name").(string) && n.Network == d.Get("network").(string) {
 			network = &n
 			break

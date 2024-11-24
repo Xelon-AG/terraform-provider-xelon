@@ -1,9 +1,9 @@
 linters:
   disable-all: true
   enable:
+    - copyloopvar
     - durationcheck
     - errcheck
-    - exportloopref
     - godot
     - gofmt
     - goimports

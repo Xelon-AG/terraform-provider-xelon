@@ -93,7 +93,6 @@ func testAccCheckSSHKeyExists(n string, sshKey *xelon.SSHKey) resource.TestCheck
 		}
 
 		for _, retrievedSSHKey := range retrievedSSHKeys {
-			retrievedSSHKey := retrievedSSHKey
 			sshKeyID := strconv.Itoa(retrievedSSHKey.ID)
 			if sshKeyID == rs.Primary.ID {
 				sshKey = &retrievedSSHKey
