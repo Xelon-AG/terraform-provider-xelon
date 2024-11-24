@@ -3,12 +3,12 @@
 page_title: "xelon_ssh_key Resource - terraform-provider-xelon"
 subcategory: ""
 description: |-
-  Xelon resource to allow you to manage SSH keys
+  The SSH key resource allows you to manage Xelon SSH keys.
 ---
 
 # xelon_ssh_key (Resource)
 
-Xelon resource to allow you to manage SSH keys
+The SSH key resource allows you to manage Xelon SSH keys.
 
 ## Example Usage
 
@@ -24,10 +24,9 @@ resource "xelon_ssh_key" "admin" {
 
 ### Required
 
-- `name` (String) The name of the SSH key
-- `public_key` (String) The text of the public key
+- `name` (String) The SSH key name.
+- `public_key` (String) The public SSH key material.
 
 ### Read-Only
 
-- `fingerprint` (String) The fingerprint of the SSH key
-- `id` (String) The ID of this resource.
+- `id` (String) The ID of the SSH key.

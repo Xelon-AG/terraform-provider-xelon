@@ -14,8 +14,8 @@ func New(version string) func() *schema.Provider {
 			"base_url": {
 				Type:        schema.TypeString,
 				Optional:    true,
-				DefaultFunc: schema.EnvDefaultFunc("XELON_BASE_URL", "https://hq.xelon.ch/api/service/"),
-				Description: "The base URL endpoint for Xelon HQ. Default is `https://hq.xelon.ch/api/service/`. " +
+				DefaultFunc: schema.EnvDefaultFunc("XELON_BASE_URL", "https://hq.xelon.ch/api/v2/"),
+				Description: "The base URL endpoint for Xelon HQ. Default is `https://hq.xelon.ch/api/v2/`. " +
 					"Alternatively, can be configured using the `XELON_BASE_URL` environment variable.",
 			},
 			"client_id": {
@@ -43,7 +43,7 @@ func New(version string) func() *schema.Provider {
 			"xelon_device":             resourceXelonDevice(),
 			"xelon_network":            resourceXelonNetwork(),
 			"xelon_persistent_storage": resourceXelonPersistentStorage(),
-			"xelon_ssh_key":            resourceXelonSSHKey(),
+			// "xelon_ssh_key":            resourceXelonSSHKey(),
 		},
 	}
 
