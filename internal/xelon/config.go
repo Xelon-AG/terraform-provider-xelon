@@ -5,8 +5,9 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/Xelon-AG/xelon-sdk-go/xelon"
 	"github.com/hashicorp/terraform-plugin-log/tflog"
+
+	"github.com/Xelon-AG/xelon-sdk-go/xelon"
 )
 
 // Config is configuration defined in the provider block.

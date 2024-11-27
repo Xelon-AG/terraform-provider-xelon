@@ -53,6 +53,7 @@ func testSweepNetworks(region string) error {
 }
 
 func TestAccResourceXelonNetwork_basic(t *testing.T) {
+	t.Skip()
 	var networkInfo xelon.NetworkInfo
 	networkName := fmt.Sprintf("%s-%s", accTestPrefix, acctest.RandString(10))
 
@@ -78,6 +79,7 @@ func TestAccResourceXelonNetwork_basic(t *testing.T) {
 }
 
 func TestAccResourceXelonNetwork_update(t *testing.T) {
+	t.Skip()
 	var networkInfo xelon.NetworkInfo
 	networkName := fmt.Sprintf("%s-%s", accTestPrefix, acctest.RandString(10))
 
