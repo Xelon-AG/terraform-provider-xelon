@@ -11,7 +11,7 @@ func TestAccDataSourceNetwork_basic(t *testing.T) {
 	t.Skip()
 	resource.Test(t, resource.TestCase{
 		PreCheck:                 func() { testAccPreCheck(t) },
-		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
+		ProtoV6ProviderFactories: testAccProviderFactories,
 		Steps: []resource.TestStep{
 			{
 				Config: testAccDataSourceNetworkConfig,
@@ -29,7 +29,7 @@ func TestAccDataSourceNetwork_missingNetworkID(t *testing.T) {
 	t.Skip()
 	resource.Test(t, resource.TestCase{
 		PreCheck:                 func() { testAccPreCheck(t) },
-		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
+		ProtoV6ProviderFactories: testAccProviderFactories,
 		Steps: []resource.TestStep{
 			{
 				Config:      testAccDataSourceNetworkWithMissingNetworkID,
