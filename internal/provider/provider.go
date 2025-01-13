@@ -17,7 +17,7 @@ import (
 )
 
 const (
-	defaultBaseURL = "https://hq.xelon.ch/api/service/"
+	defaultBaseURL = "https://hq.xelon.ch/api/v2/"
 )
 
 var _ provider.Provider = (*xelonProvider)(nil)
@@ -133,7 +133,9 @@ func (p *xelonProvider) DataSources(_ context.Context) []func() datasource.DataS
 }
 
 func (p *xelonProvider) Resources(_ context.Context) []func() resource.Resource {
-	return []func() resource.Resource{}
+	return []func() resource.Resource{
+		NewSSHKeyResource,
+	}
 }
 
 func (p *xelonProvider) userAgent() string {
