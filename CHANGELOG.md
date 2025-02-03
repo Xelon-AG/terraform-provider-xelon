@@ -1,4 +1,28 @@
 
+<a name="v1.0.0-rc0"></a>
+## v1.0.0-rc0 (2025-02-03)
+### Bug Fixes
+* resolve panic issue with SDKv2 resource import
+* **lint**: replace depcreated exportloopref linter
+* **linter**: resolve golangci-lint issues
+* **resource/xelon_network**: use correct attributes for cloud
+### Documentation
+* re-generate docs after tfplugindocs update
+### Features
+* **datasource/xelon_network**: use xelon-sdk-go v2 endpoint
+* **resource/xelon_ssh_key**: add acceptance tests
+* **resource/xelon_ssh_key**: migrate ssh key resource to framework
+### Maintaining
+* disable SDKv2 sweeper
+* configure acceptance test matrix for terraform
+* **deps**: update terraform-plugin-framework-validators to v0.13.0
+* **deps**: update xelon-sdk-go to v0.14.1
+* **deps**: upgrade dependencies to latest stable versions
+* **gh-actions**: upgrade github actions to latest stable versions
+* **tools**: upgrade golangci-lint to v1.63.4
+* **tools**: upgrade terraform-plugin-docs to v0.20.1
+* **tools**: upgrade tools dependencies to latest stable versions
+
 <a name="v0.7.0"></a>
 ## v0.7.0 (2023-03-13)
 ### Code Refactoring

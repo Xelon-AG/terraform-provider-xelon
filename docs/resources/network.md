@@ -33,15 +33,8 @@ data "xelon_cloud" "hcp" {
 
 ### Required
 
-- `cloud_id` (Number) The cloud ID from your organization.
-- `dns_primary` (String) The primary DNS server address.
-- `dns_secondary` (String) The secondary DNS server address.
-- `gateway` (String) The default gateway IP address.
-- `name` (String) The name of the network.
-- `network` (String) A /24 network.
-- `type` (String) The network type. Must be one of `WAN` or `LAN`.
+- `name` (String) The network name.
 
 ### Read-Only
 
-- `id` (String) The ID of this resource.
-- `netmask` (String) The netmask of the network.
+- `id` (String) The ID of the network.

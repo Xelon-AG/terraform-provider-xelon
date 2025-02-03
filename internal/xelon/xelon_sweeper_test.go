@@ -1,14 +1,14 @@
 package xelon
 
-import (
-	"testing"
+// import (
+// 	"testing"
+//
+// 	"github.com/hashicorp/terraform-plugin-testing/helper/resource"
+// )
 
-	"github.com/hashicorp/terraform-plugin-testing/helper/resource"
-)
-
-func TestMain(m *testing.M) {
-	resource.TestMain(m)
-}
+// func TestMain(m *testing.M) {
+// 	resource.TestMain(m)
+// }
 
 // func sharedClient(_ string) (*xelon.Client, error) {
 // 	if v := os.Getenv("XELON_BASE_URL"); v == "" {
