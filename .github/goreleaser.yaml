@@ -4,7 +4,7 @@ archives:
   - files:
       - LICENSE
       - README.md
-    format: zip
+    formats: ['zip']
     name_template: '{{ .ProjectName }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}'
 
 before:
