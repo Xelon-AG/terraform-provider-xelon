@@ -10,18 +10,50 @@ import (
 	"github.com/Xelon-AG/xelon-sdk-go/xelon"
 )
 
-func WaitPowerStateOn(ctx context.Context, client *xelon.Client, deviceID string) error {
+func WaitDevicePowerStateOn(ctx context.Context, client *xelon.Client, deviceID string) error {
 	stateConf := &retry.StateChangeConf{
-		Pending:    []string{devicePowerStateOff, ""},
+		Pending:    []string{devicePowerStateOff},
 		Target:     []string{devicePowerStateOn},
 		Timeout:    10 * time.Minute,
 		MinTimeout: 5 * time.Second,
-		Delay:      5 * time.Second,
+		Delay:      3 * time.Second,
 		Refresh:    statusPowerState(ctx, client, deviceID),
 	}
 
 	if _, err := stateConf.WaitForStateContext(ctx); err != nil {
-		return fmt.Errorf("failed to wait for device (%s) to become PoweredOn: %w", deviceID, err)
+		return fmt.Errorf("failed to wait for device (%s) to become powered on: %w", deviceID, err)
+	}
+	return nil
+}
+
+func WaitDevicePowerStateOff(ctx context.Context, client *xelon.Client, deviceID string) error {
+	stateConf := &retry.StateChangeConf{
+		Pending:    []string{devicePowerStateOn},
+		Target:     []string{devicePowerStateOff},
+		Timeout:    10 * time.Minute,
+		MinTimeout: 5 * time.Second,
+		Delay:      3 * time.Second,
+		Refresh:    statusPowerState(ctx, client, deviceID),
+	}
+
+	if _, err := stateConf.WaitForStateContext(ctx); err != nil {
+		return fmt.Errorf("failed to wait for device (%s) to become powered off: %w", deviceID, err)
+	}
+	return nil
+}
+
+func WaitDeviceStateReady(ctx context.Context, client *xelon.Client, deviceID string) error {
+	stateConf := &retry.StateChangeConf{
+		Pending:    []string{deviceStateProvisioning, deviceStateReadyForBasicUse},
+		Target:     []string{deviceStateReady},
+		Timeout:    10 * time.Minute,
+		MinTimeout: 5 * time.Second,
+		Delay:      3 * time.Second,
+		Refresh:    statusState(ctx, client, deviceID),
+	}
+
+	if _, err := stateConf.WaitForStateContext(ctx); err != nil {
+		return fmt.Errorf("failed to wait for device (%s) to become ready: %w", deviceID, err)
 	}
 	return nil
 }

@@ -2,6 +2,7 @@ package provider
 
 import (
 	"context"
+	"net/http"
 
 	"github.com/hashicorp/terraform-plugin-framework/path"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
@@ -99,22 +100,28 @@ Devices are the virtual machines that run your applications.
 				NestedObject: schema.NestedAttributeObject{
 					Attributes: map[string]schema.Attribute{
 						"connected": schema.BoolAttribute{
-							Required: true,
+							MarkdownDescription: "Whether the network should automatically connect when the device powers on.",
+							Required:            true,
 						},
 						"id": schema.StringAttribute{
-							Required: true,
+							MarkdownDescription: "The network ID to which the device will connect.",
+							Required:            true,
 						},
 						"ipv4_address": schema.StringAttribute{
-							Required: true,
+							MarkdownDescription: "The static IP address for the network connection.",
+							Required:            true,
 						},
 						"nic_controller_key": schema.Int64Attribute{
-							Required: true,
+							MarkdownDescription: "The controller key assigned to the network adapter in the device.",
+							Required:            true,
 						},
 						"nic_key": schema.Int64Attribute{
-							Required: true,
+							MarkdownDescription: "The unique key for identifying the network adapter.",
+							Required:            true,
 						},
 						"nic_unit_number": schema.Int64Attribute{
-							Required: true,
+							MarkdownDescription: "The unit number for the network device.",
+							Required:            true,
 						},
 					},
 				},
@@ -179,7 +186,6 @@ func (r *deviceResource) Create(ctx context.Context, request resource.CreateRequ
 			UnitNumber:       int(network.NICUnitNumber.ValueInt64()),
 		})
 	}
-
 	createRequest := &xelon.DeviceCreateRequest{
 		CPUCores:             int(data.CPUCoreCount.ValueInt64()),
 		DiskSize:             int(data.DiskSize.ValueInt64()),
@@ -202,13 +208,22 @@ func (r *deviceResource) Create(ctx context.Context, request resource.CreateRequ
 	tflog.Debug(ctx, "Created device", map[string]any{"data": createdDevice})
 
 	deviceID := createdDevice.ID
+
 	tflog.Info(ctx, "Waiting for device to be powered on", map[string]any{"device_id": deviceID})
-	err = helper.WaitPowerStateOn(ctx, r.client, deviceID)
+	err = helper.WaitDevicePowerStateOn(ctx, r.client, deviceID)
 	if err != nil {
-		response.Diagnostics.AddError("Device is not powered on", err.Error())
+		response.Diagnostics.AddError("Unable to wait for device to be powered on", err.Error())
 		return
 	}
 	tflog.Info(ctx, "Device is powered on", map[string]any{"device_id": deviceID})
+
+	tflog.Info(ctx, "Waiting for device to be ready", map[string]any{"device_id": deviceID})
+	err = helper.WaitDeviceStateReady(ctx, r.client, deviceID)
+	if err != nil {
+		response.Diagnostics.AddError("Unable to wait for device to be ready", err.Error())
+		return
+	}
+	tflog.Info(ctx, "Device is ready", map[string]any{"device_id": deviceID})
 
 	tflog.Debug(ctx, "Getting device with enriched properties", map[string]any{"device_id": deviceID})
 	device, _, err := r.client.Devices.Get(ctx, deviceID)
@@ -216,17 +231,52 @@ func (r *deviceResource) Create(ctx context.Context, request resource.CreateRequ
 		response.Diagnostics.AddError("Unable to get device", err.Error())
 		return
 	}
+	tflog.Debug(ctx, "Got device with enriched properties", map[string]any{"data": device})
 
 	// map response body to attributes
 	data.CPUCoreCount = types.Int64Value(int64(device.CPUCores))
+	data.DisplayName = types.StringValue(device.DisplayName)
+	data.Hostname = types.StringValue(device.HostName)
 	data.ID = types.StringValue(device.ID)
+	data.Memory = types.Int64Value(int64(device.RAM))
 
 	diags = response.State.Set(ctx, &data)
 	response.Diagnostics.Append(diags...)
 }
 
 func (r *deviceResource) Read(ctx context.Context, request resource.ReadRequest, response *resource.ReadResponse) {
-	panic("implement me")
+	var data deviceResourceModel
+
+	// read state data into the model
+	diags := request.State.Get(ctx, &data)
+	response.Diagnostics.Append(diags...)
+	if response.Diagnostics.HasError() {
+		return
+	}
+
+	deviceID := data.ID.ValueString()
+	tflog.Debug(ctx, "Getting device", map[string]any{"device_id": deviceID})
+	device, resp, err := r.client.Devices.Get(ctx, deviceID)
+	if err != nil {
+		if resp != nil && resp.StatusCode == http.StatusNotFound {
+			// if the tag is somehow already destroyed, mark as successfully gone
+			response.State.RemoveResource(ctx)
+			return
+		}
+		response.Diagnostics.AddError("Unable to get device", err.Error())
+		return
+	}
+	tflog.Debug(ctx, "Got device", map[string]any{"data": device})
+
+	// map response body to attributes
+	data.CPUCoreCount = types.Int64Value(int64(device.CPUCores))
+	data.DisplayName = types.StringValue(device.DisplayName)
+	data.Hostname = types.StringValue(device.HostName)
+	data.ID = types.StringValue(device.ID)
+	data.Memory = types.Int64Value(int64(device.RAM))
+
+	diags = response.State.Set(ctx, &data)
+	response.Diagnostics.Append(diags...)
 }
 
 func (r *deviceResource) Update(ctx context.Context, request resource.UpdateRequest, response *resource.UpdateResponse) {
@@ -244,8 +294,34 @@ func (r *deviceResource) Delete(ctx context.Context, request resource.DeleteRequ
 	}
 
 	deviceID := data.ID.ValueString()
+	tflog.Debug(ctx, "Getting device", map[string]any{"device_id": deviceID})
+	device, resp, err := r.client.Devices.Get(ctx, deviceID)
+	if err != nil {
+		if resp != nil && resp.StatusCode == http.StatusNotFound {
+			return
+		}
+		response.Diagnostics.AddError("Unable to get device", err.Error())
+		return
+	}
+	tflog.Debug(ctx, "Got device", map[string]any{"data": device})
+
+	if device.PoweredOn {
+		tflog.Info(ctx, "Stopping device", map[string]any{"data": device})
+		_, err := r.client.Devices.Stop(ctx, deviceID)
+		if err != nil {
+			response.Diagnostics.AddError("Unable to stop device", err.Error())
+			return
+		}
+
+		err = helper.WaitDevicePowerStateOff(ctx, r.client, deviceID)
+		if err != nil {
+			response.Diagnostics.AddError("Unable to wait for device to be powered off", err.Error())
+			return
+		}
+	}
+
 	tflog.Debug(ctx, "Deleting device", map[string]any{"device_id": deviceID})
-	_, err := r.client.Devices.Delete(ctx, deviceID)
+	_, err = r.client.Devices.Delete(ctx, deviceID)
 	if err != nil {
 		response.Diagnostics.AddError("Unable to delete device", err.Error())
 		return
