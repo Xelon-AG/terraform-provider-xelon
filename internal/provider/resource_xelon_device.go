@@ -123,6 +123,7 @@ Devices are the virtual machines that run your applications.
 			"password": schema.StringAttribute{
 				MarkdownDescription: "The password for the device root or administrator user.",
 				Required:            true,
+				Sensitive:           true,
 			},
 			"swap_disk_size": schema.Int64Attribute{
 				MarkdownDescription: "The size of the swap disk in GB.",
