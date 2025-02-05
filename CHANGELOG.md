@@ -1,4 +1,12 @@
 
+<a name="v1.0.0-rc2"></a>
+## v1.0.0-rc2 (2025-02-05)
+### Bug Fixes
+* **resource/xelon_device**: improve check for powered and ready state
+* **resource/xelon_device**: make password sensitive
+### Documentation
+* **resource/xelon_device**: update documentation for network block
+
 <a name="v1.0.0-rc1"></a>
 ## v1.0.0-rc1 (2025-02-05)
 ### Features
