@@ -1,4 +1,11 @@
 
+<a name="v1.0.0-rc1"></a>
+## v1.0.0-rc1 (2025-02-05)
+### Features
+* **resource/xelon_device**: use xelon-sdk-go v2 endpoint
+### Maintaining
+* update goreleaser deprecated properties
+
 <a name="v1.0.0-rc0"></a>
 ## v1.0.0-rc0 (2025-02-03)
 ### Bug Fixes
