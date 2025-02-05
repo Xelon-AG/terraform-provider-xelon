@@ -51,7 +51,7 @@ resource "xelon_device" "server" {
 - `hostname` (String) The hostname of the device
 - `memory` (Number) The amount of RAM in GB to allocate to the device.
 - `networks` (Attributes Set) The networks configured for the device. (see [below for nested schema](#nestedatt--networks))
-- `password` (String) The password for the device root or administrator user.
+- `password` (String, Sensitive) The password for the device root or administrator user.
 - `swap_disk_size` (Number) The size of the swap disk in GB.
 - `template_id` (String) The template ID used to create the device.
 - `tenant_id` (String) The tenant ID to whom the device belongs.
@@ -65,9 +65,9 @@ resource "xelon_device" "server" {
 
 Required:
 
-- `connected` (Boolean)
-- `id` (String)
-- `ipv4_address` (String)
-- `nic_controller_key` (Number)
-- `nic_key` (Number)
-- `nic_unit_number` (Number)
+- `connected` (Boolean) Whether the network should automatically connect when the device powers on.
+- `id` (String) The network ID to which the device will connect.
+- `ipv4_address` (String) The static IP address for the network connection.
+- `nic_controller_key` (Number) The controller key assigned to the network adapter in the device.
+- `nic_key` (Number) The unique key for identifying the network adapter.
+- `nic_unit_number` (Number) The unit number for the network device.
