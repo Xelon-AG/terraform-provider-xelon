@@ -3,6 +3,7 @@ package helper
 import (
 	"context"
 	"fmt"
+	"net/http"
 
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/retry"
 
@@ -20,8 +21,12 @@ const (
 
 func statusPowerState(ctx context.Context, client *xelon.Client, deviceID string) retry.StateRefreshFunc {
 	return func() (any, string, error) {
-		device, _, err := client.Devices.Get(ctx, deviceID)
+		device, resp, err := client.Devices.Get(ctx, deviceID)
 		if err != nil {
+			// API returns 500 sometimes for fresh created devices in-provisioning state
+			if resp != nil && resp.StatusCode == http.StatusInternalServerError {
+				return device, devicePowerStateOff, nil
+			}
 			return nil, "", err
 		}
 		if device == nil {
