@@ -1,4 +1,11 @@
 
+<a name="v1.0.0-rc3"></a>
+## v1.0.0-rc3 (2025-02-07)
+### Bug Fixes
+* **resource/xelon_device**: relax check for power state and fresh created devices
+### Features
+* **resource/xelon_device**: add optional fields for device
+
 <a name="v1.0.0-rc2"></a>
 ## v1.0.0-rc2 (2025-02-05)
 ### Bug Fixes
