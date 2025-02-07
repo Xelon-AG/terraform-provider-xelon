@@ -7,6 +7,8 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/path"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
+	"github.com/hashicorp/terraform-plugin-framework/resource/schema/boolplanmodifier"
+	"github.com/hashicorp/terraform-plugin-framework/resource/schema/int64planmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/planmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/stringplanmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/types"
@@ -29,17 +31,22 @@ type deviceResource struct {
 
 // deviceResourceModel maps the tag resource schema data.
 type deviceResourceModel struct {
-	CPUCoreCount types.Int64                  `tfsdk:"cpu_core_count"`
-	DiskSize     types.Int64                  `tfsdk:"disk_size"`
-	DisplayName  types.String                 `tfsdk:"display_name"`
-	Hostname     types.String                 `tfsdk:"hostname"`
-	ID           types.String                 `tfsdk:"id"`
-	Memory       types.Int64                  `tfsdk:"memory"`
-	Networks     []deviceNetworkResourceModel `tfsdk:"networks"`
-	Password     types.String                 `tfsdk:"password"`
-	SwapDiskSize types.Int64                  `tfsdk:"swap_disk_size"`
-	TemplateID   types.String                 `tfsdk:"template_id"`
-	TenantID     types.String                 `tfsdk:"tenant_id"`
+	BackupJobID      types.Int64                  `tfsdk:"backup_job_id"`
+	CPUCoreCount     types.Int64                  `tfsdk:"cpu_core_count"`
+	DiskSize         types.Int64                  `tfsdk:"disk_size"`
+	DisplayName      types.String                 `tfsdk:"display_name"`
+	EnableMonitoring types.Bool                   `tfsdk:"enable_monitoring"`
+	Hostname         types.String                 `tfsdk:"hostname"`
+	ID               types.String                 `tfsdk:"id"`
+	Memory           types.Int64                  `tfsdk:"memory"`
+	Networks         []deviceNetworkResourceModel `tfsdk:"networks"`
+	Password         types.String                 `tfsdk:"password"`
+	SendEmail        types.Bool                   `tfsdk:"send_email"`
+	SSHKeyID         types.String                 `tfsdk:"ssh_key_id"`
+	ScriptID         types.String                 `tfsdk:"script_id"`
+	SwapDiskSize     types.Int64                  `tfsdk:"swap_disk_size"`
+	TemplateID       types.String                 `tfsdk:"template_id"`
+	TenantID         types.String                 `tfsdk:"tenant_id"`
 }
 
 type deviceNetworkResourceModel struct {
@@ -68,6 +75,13 @@ Devices are the virtual machines that run your applications.
 `,
 		Version: 0,
 		Attributes: map[string]schema.Attribute{
+			"backup_job_id": schema.Int64Attribute{
+				MarkdownDescription: "The ID for the backup job.",
+				Optional:            true,
+				PlanModifiers: []planmodifier.Int64{
+					int64planmodifier.UseStateForUnknown(),
+				},
+			},
 			"cpu_core_count": schema.Int64Attribute{
 				MarkdownDescription: "The number of CPU cores to allocate to the device.",
 				Required:            true,
@@ -79,6 +93,14 @@ Devices are the virtual machines that run your applications.
 			"display_name": schema.StringAttribute{
 				MarkdownDescription: "The name of the device.",
 				Required:            true,
+			},
+			"enable_monitoring": schema.BoolAttribute{
+				MarkdownDescription: "Whether to enable monitoring for the device.",
+				Optional:            true,
+				Computed:            true,
+				PlanModifiers: []planmodifier.Bool{
+					boolplanmodifier.UseStateForUnknown(),
+				},
 			},
 			"hostname": schema.StringAttribute{
 				MarkdownDescription: "The hostname of the device",
@@ -131,6 +153,27 @@ Devices are the virtual machines that run your applications.
 				MarkdownDescription: "The password for the device root or administrator user.",
 				Required:            true,
 				Sensitive:           true,
+			},
+			"send_email": schema.BoolAttribute{
+				MarkdownDescription: "Whether to send an email notification upon successful device creation.",
+				Optional:            true,
+				PlanModifiers: []planmodifier.Bool{
+					boolplanmodifier.UseStateForUnknown(),
+				},
+			},
+			"script_id": schema.StringAttribute{
+				MarkdownDescription: "The ID of the script to be executed during the device setup.",
+				Optional:            true,
+				PlanModifiers: []planmodifier.String{
+					stringplanmodifier.UseStateForUnknown(),
+				},
+			},
+			"ssh_key_id": schema.StringAttribute{
+				MarkdownDescription: "The ID of the SSH key to be used for authentication.",
+				Optional:            true,
+				PlanModifiers: []planmodifier.String{
+					stringplanmodifier.UseStateForUnknown(),
+				},
 			},
 			"swap_disk_size": schema.Int64Attribute{
 				MarkdownDescription: "The size of the swap disk in GB.",
