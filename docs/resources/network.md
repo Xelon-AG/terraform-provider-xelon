@@ -3,7 +3,7 @@
 page_title: "xelon_network Resource - terraform-provider-xelon"
 subcategory: ""
 description: |-
-  The network resource allows you to manage Xelon networks.
+    The network resource allows you to manage Xelon networks.
 ---
 
 # xelon_network (Resource)
@@ -12,14 +12,18 @@ The network resource allows you to manage Xelon networks.
 
 ## Example Usage
 
+### LAN network
+
 ```terraform
 resource "xelon_network" "backend_lan" {
-  cloud_id      = data.xelon_cloud.hcp.cloud_id
+  cloud_id      = data.xelon_cloud.hcp.id
   dns_primary   = "8.8.8.8"
   dns_secondary = "8.8.4.4"
   gateway       = "10.0.0.1"
   name          = "LAN: backend"
   network       = "10.0.0.0"
+  network_speed = 1000
+  subnet_size   = 24
   type          = "LAN"
 }
 
@@ -33,7 +37,19 @@ data "xelon_cloud" "hcp" {
 
 ### Required
 
+- `cloud_id` (String) The ID of the cloud.
+- `dns_primary` (String) The primary DNS server address.
+- `gateway` (String) The default gateway address.
 - `name` (String) The network name.
+- `network` (String) The network definition.
+- `network_speed` (Number) The speed of the network in MBit. Must be one of `1000` or `10000`.
+- `subnet_size` (Number) The subnet size of the network.
+- `type` (String) The network type. Must be one of `LAN` or `WAN`.
+
+### Optional
+
+- `dns_secondary` (String) The secondary DNS server address.
+- `tenant_id` (String) The tenant ID to whom the network belongs.
 
 ### Read-Only
 
