@@ -1,4 +1,11 @@
 
+<a name="v1.0.0-rc4"></a>
+## v1.0.0-rc4 (2025-02-09)
+### Features
+* **resource/xelon_network**: use v2 sdk to create LAN networks
+### Maintaining
+* **deps**: upgrade hashicorp dependencies to latest versions
+
 <a name="v1.0.0-rc3"></a>
 ## v1.0.0-rc3 (2025-02-07)
 ### Bug Fixes
