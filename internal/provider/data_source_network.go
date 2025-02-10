@@ -25,7 +25,7 @@ type networkDataSource struct {
 	client *xelon.Client
 }
 
-// networkDataSourceModel maps the network data source schema data.
+// networkDataSourceModel maps the network datasource schema data.
 type networkDataSourceModel struct {
 	Clouds       []cloudDataSourceModel `tfsdk:"clouds"`
 	DNSPrimary   types.String           `tfsdk:"dns_primary"`

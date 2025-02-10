@@ -3,7 +3,7 @@
 page_title: "xelon_network Data Source - terraform-provider-xelon"
 subcategory: ""
 description: |-
-    The network data source provides information about an existing network.
+  The network data source provides information about an existing network.
 ---
 
 # xelon_network (Data Source)
