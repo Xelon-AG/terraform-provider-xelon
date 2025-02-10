@@ -28,7 +28,7 @@ data "xelon_network" "lan" {
 }
 ```
 
-## Using ID and name
+### Using ID and name
 
 ```terraform
 data "xelon_network" "lan" {

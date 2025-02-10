@@ -31,7 +31,7 @@ data "xelon_cloud" "hcp" {
 }
 ```
 
-## Using ID and name
+### Using ID and name
 
 ```terraform
 data "xelon_cloud" "hcp" {
