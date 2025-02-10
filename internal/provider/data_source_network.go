@@ -215,8 +215,17 @@ func (d *networkDataSource) Read(ctx context.Context, request datasource.ReadReq
 			return
 		}
 
+		network := &networks[0]
+		// enrich data because not all fields are exposed via list API
+		tflog.Debug(ctx, "Getting network", map[string]any{"network_id": network.ID})
+		network, _, err = d.client.Networks.Get(ctx, network.ID)
+		if err != nil {
+			response.Diagnostics.AddError("Unable to get network", err.Error())
+			return
+		}
+		tflog.Debug(ctx, "Got network", map[string]any{"data": network})
+
 		// map response body to attributes
-		network := networks[0]
 		var clouds []cloudDataSourceModel
 		for _, cloud := range network.Clouds {
 			clouds = append(clouds, cloudDataSourceModel{
