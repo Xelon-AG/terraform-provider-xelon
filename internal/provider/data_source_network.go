@@ -2,9 +2,13 @@ package provider
 
 import (
 	"context"
+	"fmt"
+	"net/http"
 
+	"github.com/hashicorp/terraform-plugin-framework-validators/stringvalidator"
 	"github.com/hashicorp/terraform-plugin-framework/datasource"
 	"github.com/hashicorp/terraform-plugin-framework/datasource/schema"
+	"github.com/hashicorp/terraform-plugin-framework/schema/validator"
 	"github.com/hashicorp/terraform-plugin-framework/types"
 	"github.com/hashicorp/terraform-plugin-log/tflog"
 
@@ -26,10 +30,12 @@ type networkDataSourceModel struct {
 	Clouds       []cloudDataSourceModel `tfsdk:"clouds"`
 	DNSPrimary   types.String           `tfsdk:"dns_primary"`
 	DNSSecondary types.String           `tfsdk:"dns_secondary"`
+	Gateway      types.String           `tfsdk:"gateway"`
 	ID           types.String           `tfsdk:"id"`
 	Name         types.String           `tfsdk:"name"`
 	Network      types.String           `tfsdk:"network"`
 	SubnetSize   types.Int64            `tfsdk:"subnet_size"`
+	TenantID     types.String           `tfsdk:"tenant_id"`
 	Type         types.String           `tfsdk:"type"`
 }
 
@@ -55,7 +61,7 @@ func (d *networkDataSource) Schema(_ context.Context, _ datasource.SchemaRequest
 							Computed:            true,
 						},
 						"name": schema.StringAttribute{
-							MarkdownDescription: "The name of the network.",
+							MarkdownDescription: "The name of the cloud.",
 							Computed:            true,
 						},
 					},
@@ -69,14 +75,19 @@ func (d *networkDataSource) Schema(_ context.Context, _ datasource.SchemaRequest
 				MarkdownDescription: "The secondary DNS server address.",
 				Computed:            true,
 			},
+			"gateway": schema.StringAttribute{
+				MarkdownDescription: "The default gateway address.",
+				Computed:            true,
+			},
 			"id": schema.StringAttribute{
 				MarkdownDescription: "The ID of the network.",
 				Computed:            true,
 				Optional:            true,
 			},
 			"name": schema.StringAttribute{
-				MarkdownDescription: "The name of the network.",
+				MarkdownDescription: "The network name.",
 				Computed:            true,
+				Optional:            true,
 			},
 			"network": schema.StringAttribute{
 				MarkdownDescription: "The network definition.",
@@ -86,9 +97,16 @@ func (d *networkDataSource) Schema(_ context.Context, _ datasource.SchemaRequest
 				MarkdownDescription: "The subnet size of the network.",
 				Computed:            true,
 			},
-			"type": schema.StringAttribute{
-				MarkdownDescription: "The type of the network (LAN or WAN).",
+			"tenant_id": schema.StringAttribute{
+				MarkdownDescription: "The tenant ID to whom the network belongs.",
 				Computed:            true,
+			},
+			"type": schema.StringAttribute{
+				MarkdownDescription: "The type of the network (`LAN` or `WAN`).",
+				Computed:            true,
+				Validators: []validator.String{
+					stringvalidator.OneOf([]string{"LAN", "WAN"}...),
+				},
 			},
 		},
 	}
@@ -121,39 +139,104 @@ func (d *networkDataSource) Read(ctx context.Context, request datasource.ReadReq
 	}
 
 	networkID := data.ID.ValueString()
-	if networkID == "" {
+	networkName := data.Name.ValueString()
+	if networkID == "" && networkName == "" {
 		response.Diagnostics.AddError(
 			"Missing required attributes",
-			`The attribute "id" must be defined.`,
+			`The attribute "id" or "name" must be defined.`,
 		)
 		return
 	}
 
-	tflog.Debug(ctx, "Getting network by ID", map[string]any{"network_id": networkID})
-	network, _, err := d.client.Networks.Get(ctx, networkID)
-	if err != nil {
-		response.Diagnostics.AddError("Unable to get network", err.Error())
-		return
-	}
-	tflog.Debug(ctx, "Got network by ID", map[string]any{"data": network, "network_id": networkID})
+	if networkID != "" {
+		tflog.Info(ctx, "Searching for network by ID", map[string]any{"network_id": networkID})
 
-	var clouds []cloudDataSourceModel
-	for _, cloud := range network.Clouds {
-		clouds = append(clouds, cloudDataSourceModel{
-			ID:   types.StringValue(cloud.ID),
-			Name: types.StringValue(cloud.Name),
-		})
-	}
+		tflog.Debug(ctx, "Getting network", map[string]any{"network_id": networkID})
+		network, resp, err := d.client.Networks.Get(ctx, networkID)
+		if err != nil {
+			if resp != nil && resp.StatusCode == http.StatusNotFound {
+				response.Diagnostics.AddError("No search results", "Please refine your search.")
+				return
+			}
+			response.Diagnostics.AddError("Unable to get network", err.Error())
+			return
+		}
+		tflog.Debug(ctx, "Got network", map[string]any{"data": network, "network_id": networkID})
 
-	// map response body to attributes
-	data.Clouds = clouds
-	data.DNSPrimary = types.StringValue(network.DNSPrimary)
-	data.DNSSecondary = types.StringValue(network.DNSSecondary)
-	data.ID = types.StringValue(network.ID)
-	data.Name = types.StringValue(network.Name)
-	data.Network = types.StringValue(network.Network)
-	data.SubnetSize = types.Int64Value(int64(network.SubnetSize))
-	data.Type = types.StringValue(network.Type)
+		// if name is defined check that it's equal
+		if networkName != "" && networkName != network.Name {
+			response.Diagnostics.AddError(
+				"Ambiguous search result",
+				fmt.Sprintf("Specified and actual network name are different: expected '%s', got '%s'.", networkName, network.Name),
+			)
+			return
+		}
+
+		// map response body to attributes
+		var clouds []cloudDataSourceModel
+		for _, cloud := range network.Clouds {
+			clouds = append(clouds, cloudDataSourceModel{
+				ID:   types.StringValue(cloud.ID),
+				Name: types.StringValue(cloud.Name),
+			})
+		}
+		data.Clouds = clouds
+		data.DNSPrimary = types.StringValue(network.DNSPrimary)
+		data.DNSSecondary = types.StringValue(network.DNSSecondary)
+		data.Gateway = types.StringValue(network.Gateway)
+		data.ID = types.StringValue(network.ID)
+		data.Name = types.StringValue(network.Name)
+		data.Network = types.StringValue(network.Network)
+		data.SubnetSize = types.Int64Value(int64(network.SubnetSize))
+		if network.Owner != nil {
+			data.TenantID = types.StringValue(network.Owner.ID)
+		}
+		data.Type = types.StringValue(network.Type)
+	} else {
+		tflog.Info(ctx, "Searching for network by name", map[string]any{"network_name": networkName})
+
+		tflog.Debug(ctx, "Getting networks", map[string]any{"network_id": networkID})
+		networks, _, err := d.client.Networks.List(ctx, &xelon.NetworkListOptions{Search: networkName})
+		if err != nil {
+			response.Diagnostics.AddError("Unable to search networks by name", err.Error())
+			return
+		}
+		tflog.Debug(ctx, "Got networks", map[string]any{"data": networks})
+
+		if len(networks) == 0 {
+			response.Diagnostics.AddError("No search results", "Please refine your search.")
+			return
+		}
+		if len(networks) > 1 {
+			response.Diagnostics.AddError(
+				"Too many search results",
+				fmt.Sprintf("Please refine your search to be more specific. Found %v networks.", len(networks)),
+			)
+			return
+		}
+
+		// map response body to attributes
+		network := networks[0]
+		var clouds []cloudDataSourceModel
+		for _, cloud := range network.Clouds {
+			clouds = append(clouds, cloudDataSourceModel{
+				ID:   types.StringValue(cloud.ID),
+				Name: types.StringValue(cloud.Name),
+			})
+		}
+		data.Clouds = clouds
+		data.DNSPrimary = types.StringValue(network.DNSPrimary)
+		data.DNSSecondary = types.StringValue(network.DNSSecondary)
+		data.Gateway = types.StringValue(network.Gateway)
+		data.ID = types.StringValue(network.ID)
+		data.Name = types.StringValue(network.Name)
+		data.Network = types.StringValue(network.Network)
+		data.SubnetSize = types.Int64Value(int64(network.SubnetSize))
+		if network.Owner != nil {
+			data.TenantID = types.StringValue(network.Owner.ID)
+		}
+		data.Type = types.StringValue(network.Type)
+	}
 
 	diags = response.State.Set(ctx, &data)
 	response.Diagnostics.Append(diags...)

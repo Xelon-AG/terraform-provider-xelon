@@ -3,7 +3,7 @@
 page_title: "xelon_network Data Source - terraform-provider-xelon"
 subcategory: ""
 description: |-
-  The network data source provides information about an existing network.
+    The network data source provides information about an existing network.
 ---
 
 # xelon_network (Data Source)
@@ -12,11 +12,28 @@ The network data source provides information about an existing network.
 
 ## Example Usage
 
+### Using ID
+
 ```terraform
-data "xelon_network" "wan" {
-  filter = {
-    network_id = 11
-  }
+data "xelon_network" "lan" {
+  id = "90531b0df9"
+}
+```
+
+### Using name
+
+```terraform
+data "xelon_network" "lan" {
+  name = "HCP backend"
+}
+```
+
+## Using ID and name
+
+```terraform
+data "xelon_network" "lan" {
+  id   = "90531b0df9"
+  name = "HCP backend"
 }
 ```
 
@@ -26,16 +43,18 @@ data "xelon_network" "wan" {
 ### Optional
 
 - `id` (String) The ID of the network.
+- `name` (String) The network name.
 
 ### Read-Only
 
 - `clouds` (Attributes Set) The clouds of the network. (see [below for nested schema](#nestedatt--clouds))
 - `dns_primary` (String) The primary DNS server address.
 - `dns_secondary` (String) The secondary DNS server address.
-- `name` (String) The name of the network.
+- `gateway` (String) The default gateway address.
 - `network` (String) The network definition.
 - `subnet_size` (Number) The subnet size of the network.
-- `type` (String) The type of the network (LAN or WAN).
+- `tenant_id` (String) The tenant ID to whom the network belongs.
+- `type` (String) The type of the network (`LAN` or `WAN`).
 
 <a id="nestedatt--clouds"></a>
 ### Nested Schema for `clouds`
@@ -43,4 +62,4 @@ data "xelon_network" "wan" {
 Read-Only:
 
 - `id` (String) The ID of the cloud.
-- `name` (String) The name of the network.
+- `name` (String) The name of the cloud.
