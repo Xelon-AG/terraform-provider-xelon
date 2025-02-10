@@ -195,7 +195,7 @@ func (d *networkDataSource) Read(ctx context.Context, request datasource.ReadReq
 	} else {
 		tflog.Info(ctx, "Searching for network by name", map[string]any{"network_name": networkName})
 
-		tflog.Debug(ctx, "Getting networks", map[string]any{"network_id": networkID})
+		tflog.Debug(ctx, "Getting networks", map[string]any{"network_name": networkName})
 		networks, _, err := d.client.Networks.List(ctx, &xelon.NetworkListOptions{Search: networkName})
 		if err != nil {
 			response.Diagnostics.AddError("Unable to search networks by name", err.Error())

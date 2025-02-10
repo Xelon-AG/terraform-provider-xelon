@@ -57,6 +57,7 @@ Xelon cloud is data center where your resources are hosted.
 		},
 	}
 }
+
 func (d *cloudDataSource) Configure(_ context.Context, request datasource.ConfigureRequest, response *datasource.ConfigureResponse) {
 	if request.ProviderData == nil {
 		return
