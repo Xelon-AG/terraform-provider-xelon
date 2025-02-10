@@ -1,4 +1,13 @@
 
+<a name="v1.0.0-rc5"></a>
+## v1.0.0-rc5 (2025-02-10)
+### Bug Fixes
+* **datasource/xelon_network**: fetch missing properties after listing network
+### Documentation
+* **datasource/xelon_network**: add examples for network filtering
+### Features
+* **datasource/xelon_cloud**: use v2 endpoints for clouds
+
 <a name="v1.0.0-rc4"></a>
 ## v1.0.0-rc4 (2025-02-09)
 ### Features
