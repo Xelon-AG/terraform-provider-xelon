@@ -1,4 +1,14 @@
 
+<a name="v1.0.0-rc6"></a>
+## v1.0.0-rc6 (2025-02-11)
+### Bug Fixes
+* **datasource/xelon_tenant**: do not search by name for current tenant
+* **resource/xelon_device**: re-create device if template is changed
+### Documentation
+* fix formatting in template examples
+### Features
+* **datasource/xelon_tenant**: use v2 endpoints for clouds
+
 <a name="v1.0.0-rc5"></a>
 ## v1.0.0-rc5 (2025-02-10)
 ### Bug Fixes
