@@ -182,6 +182,9 @@ Devices are the virtual machines that run your applications.
 			"template_id": schema.StringAttribute{
 				MarkdownDescription: "The template ID used to create the device.",
 				Required:            true,
+				PlanModifiers: []planmodifier.String{
+					stringplanmodifier.RequiresReplace(),
+				},
 			},
 			"tenant_id": schema.StringAttribute{
 				MarkdownDescription: "The tenant ID to whom the device belongs.",
@@ -279,6 +282,7 @@ func (r *deviceResource) Create(ctx context.Context, request resource.CreateRequ
 	// map response body to attributes
 	data.CPUCoreCount = types.Int64Value(int64(device.CPUCores))
 	data.DisplayName = types.StringValue(device.DisplayName)
+	data.EnableMonitoring = types.BoolValue(device.MonitoringEnabled)
 	data.Hostname = types.StringValue(device.HostName)
 	data.ID = types.StringValue(device.ID)
 	data.Memory = types.Int64Value(int64(device.RAM))
@@ -314,6 +318,7 @@ func (r *deviceResource) Read(ctx context.Context, request resource.ReadRequest,
 	// map response body to attributes
 	data.CPUCoreCount = types.Int64Value(int64(device.CPUCores))
 	data.DisplayName = types.StringValue(device.DisplayName)
+	data.EnableMonitoring = types.BoolValue(device.MonitoringEnabled)
 	data.Hostname = types.StringValue(device.HostName)
 	data.ID = types.StringValue(device.ID)
 	data.Memory = types.Int64Value(int64(device.RAM))
