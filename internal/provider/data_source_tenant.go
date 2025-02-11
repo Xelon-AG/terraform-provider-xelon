@@ -140,7 +140,7 @@ func (d *tenantDataSource) Read(ctx context.Context, request datasource.ReadRequ
 		data.ID = types.StringValue(tenant.ID)
 		data.Name = types.StringValue(tenant.Name)
 		data.Status = types.StringValue(tenant.Status)
-	} else {
+	} else if tenantName != "" {
 		tflog.Info(ctx, "Searching for tenant by name", map[string]any{"tenant_name": tenantName})
 
 		tflog.Debug(ctx, "Getting tenants", map[string]any{"tenant_name": tenantName})
