@@ -217,7 +217,46 @@ func (r *networkResource) Create(ctx context.Context, request resource.CreateReq
 	if data.Type.ValueString() == "WAN" {
 		tflog.Info(ctx, "Creating WAN network", map[string]any{"type": data.Type.ValueString()})
 
-		//
+		createRequest := &xelon.NetworkWANCreateRequest{
+			CloudID:      data.CloudID.ValueString(),
+			Name:         data.Name.ValueString(),
+			NetworkSpeed: int(data.NetworkSpeed.ValueInt64()),
+			SubnetSize:   int(data.SubnetSize.ValueInt64()),
+		}
+		if data.TenantID.ValueString() != "" {
+			createRequest.TenantID = data.TenantID.ValueString()
+		}
+		tflog.Debug(ctx, "Creating WAN network", map[string]any{"payload": createRequest})
+		network, _, err := r.client.Networks.CreateWAN(ctx, createRequest)
+		if err != nil {
+			response.Diagnostics.AddError("Unable to create WAN network", err.Error())
+			return
+		}
+		tflog.Debug(ctx, "Created WAN network", map[string]any{"data": network})
+
+		// enrich data because after create not all fields are exposed via API
+		tflog.Debug(ctx, "Getting new created WAN network", map[string]any{"network_id": network.ID})
+		network, _, err = r.client.Networks.Get(ctx, network.ID)
+		if err != nil {
+			response.Diagnostics.AddError("Unable to get WAN network", err.Error())
+			return
+		}
+		tflog.Debug(ctx, "Got new created WAN network", map[string]any{"data": network})
+
+		// map response body to attributes
+		data.CloudID = types.StringValue(network.Clouds[0].ID)
+		data.DNSPrimary = types.StringValue(network.DNSPrimary)
+		data.DNSSecondary = types.StringValue(network.DNSSecondary)
+		data.Gateway = types.StringValue(network.Gateway)
+		data.ID = types.StringValue(network.ID)
+		data.Name = types.StringValue(network.Name)
+		data.Network = types.StringValue(network.Network)
+		data.NetworkSpeed = types.Int64Value(int64(network.NetworkSpeed))
+		data.SubnetSize = types.Int64Value(int64(network.SubnetSize))
+		if network.Owner != nil {
+			data.TenantID = types.StringValue(network.Owner.ID)
+		}
+		data.Type = types.StringValue(network.Type)
 	}
 
 	diags = response.State.Set(ctx, &data)
@@ -289,6 +328,38 @@ func (r *networkResource) Update(ctx context.Context, request resource.UpdateReq
 			return
 		}
 		tflog.Debug(ctx, "Updated LAN network", map[string]any{"data": network})
+
+		// map response body to attributes
+		data.CloudID = types.StringValue(network.Clouds[0].ID)
+		data.DNSPrimary = types.StringValue(network.DNSPrimary)
+		data.DNSSecondary = types.StringValue(network.DNSSecondary)
+		data.Gateway = types.StringValue(network.Gateway)
+		data.ID = types.StringValue(network.ID)
+		data.Name = types.StringValue(network.Name)
+		data.Network = types.StringValue(network.Network)
+		data.NetworkSpeed = types.Int64Value(int64(network.NetworkSpeed))
+		data.SubnetSize = types.Int64Value(int64(network.SubnetSize))
+		if network.Owner != nil {
+			data.TenantID = types.StringValue(network.Owner.ID)
+		}
+		data.Type = types.StringValue(network.Type)
+	}
+	if data.Type.ValueString() == "WAN" {
+		networkID := data.ID.ValueString()
+		updateRequest := &xelon.NetworkWANUpdateRequest{
+			DNSPrimary:   data.DNSPrimary.ValueString(),
+			DNSSecondary: data.DNSSecondary.ValueString(),
+			Gateway:      data.Gateway.ValueString(),
+			Name:         data.Name.ValueString(),
+			NetworkSpeed: int(data.NetworkSpeed.ValueInt64()),
+		}
+		tflog.Debug(ctx, "Updating WAN network", map[string]any{"network_id": networkID, "payload": updateRequest})
+		network, _, err := r.client.Networks.UpdateWAN(ctx, networkID, updateRequest)
+		if err != nil {
+			response.Diagnostics.AddError("Unable to update WAN network", err.Error())
+			return
+		}
+		tflog.Debug(ctx, "Updated WAN network", map[string]any{"data": network})
 
 		// map response body to attributes
 		data.CloudID = types.StringValue(network.Clouds[0].ID)
