@@ -1,4 +1,12 @@
 
+<a name="v1.0.0-rc7"></a>
+## v1.0.0-rc7 (2025-02-13)
+### Bug Fixes
+* **resource/xelon_network**: make required attributes configurable for LAN and WAN type
+### Features
+* **resource/xelon_device**: update required and optional attributes for network config
+* **resource/xelon_network**: use api v2 for create/update WAN networks
+
 <a name="v1.0.0-rc6"></a>
 ## v1.0.0-rc6 (2025-02-11)
 ### Bug Fixes
