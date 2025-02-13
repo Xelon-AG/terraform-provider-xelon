@@ -29,12 +29,8 @@ resource "xelon_device" "server" {
 
   networks = [
     {
-      connected          = true
-      id                 = "<network-id>"
-      ipv4_address       = "10.0.0.155"
-      nic_controller_key = 100
-      nic_key            = 4000
-      nic_unit_number    = 7
+      connected = true
+      id        = "<network-id>"
     }
   ]
 }
@@ -75,7 +71,8 @@ Required:
 
 - `connected` (Boolean) Whether the network should automatically connect when the device powers on.
 - `id` (String) The network ID to which the device will connect.
+
+Optional:
+
 - `ipv4_address` (String) The static IP address for the network connection.
-- `nic_controller_key` (Number) The controller key assigned to the network adapter in the device.
-- `nic_key` (Number) The unique key for identifying the network adapter.
-- `nic_unit_number` (Number) The unit number for the network device.
+- `ipv4_address_id` (String) The ID of the static IP address for the network connection.

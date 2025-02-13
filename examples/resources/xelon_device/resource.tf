@@ -11,12 +11,8 @@ resource "xelon_device" "server" {
 
   networks = [
     {
-      connected          = true
-      id                 = "<network-id>"
-      ipv4_address       = "10.0.0.155"
-      nic_controller_key = 100
-      nic_key            = 4000
-      nic_unit_number    = 7
+      connected = true
+      id        = "<network-id>"
     }
   ]
 }

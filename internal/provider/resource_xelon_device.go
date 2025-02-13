@@ -50,12 +50,10 @@ type deviceResourceModel struct {
 }
 
 type deviceNetworkResourceModel struct {
-	Connected        types.Bool   `tfsdk:"connected"`
-	ID               types.String `tfsdk:"id"`
-	IPAddress        types.String `tfsdk:"ipv4_address"`
-	NICControllerKey types.Int64  `tfsdk:"nic_controller_key"`
-	NICKey           types.Int64  `tfsdk:"nic_key"`
-	NICUnitNumber    types.Int64  `tfsdk:"nic_unit_number"`
+	Connected   types.Bool   `tfsdk:"connected"`
+	ID          types.String `tfsdk:"id"`
+	IPAddress   types.String `tfsdk:"ipv4_address"`
+	IPAddressID types.String `tfsdk:"ipv4_address_id"`
 }
 
 func NewDeviceResource() resource.Resource {
@@ -131,19 +129,11 @@ Devices are the virtual machines that run your applications.
 						},
 						"ipv4_address": schema.StringAttribute{
 							MarkdownDescription: "The static IP address for the network connection.",
-							Required:            true,
+							Optional:            true,
 						},
-						"nic_controller_key": schema.Int64Attribute{
-							MarkdownDescription: "The controller key assigned to the network adapter in the device.",
-							Required:            true,
-						},
-						"nic_key": schema.Int64Attribute{
-							MarkdownDescription: "The unique key for identifying the network adapter.",
-							Required:            true,
-						},
-						"nic_unit_number": schema.Int64Attribute{
-							MarkdownDescription: "The unit number for the network device.",
-							Required:            true,
+						"ipv4_address_id": schema.StringAttribute{
+							MarkdownDescription: "The ID of the static IP address for the network connection.",
+							Optional:            true,
 						},
 					},
 				},
@@ -223,14 +213,17 @@ func (r *deviceResource) Create(ctx context.Context, request resource.CreateRequ
 
 	var networks []xelon.DeviceCreateNetwork
 	for _, network := range data.Networks {
-		networks = append(networks, xelon.DeviceCreateNetwork{
+		n := xelon.DeviceCreateNetwork{
 			ConnectOnPowerOn: network.Connected.ValueBool(),
-			ControllerKey:    int(network.NICControllerKey.ValueInt64()),
-			IPAddress:        network.IPAddress.ValueString(),
-			Key:              int(network.NICKey.ValueInt64()),
 			NetworkID:        network.ID.ValueString(),
-			UnitNumber:       int(network.NICUnitNumber.ValueInt64()),
-		})
+		}
+		if network.IPAddress.ValueString() != "" {
+			n.IPAddress = network.IPAddress.ValueString()
+		}
+		if network.IPAddressID.ValueString() != "" {
+			n.IPAddress = network.IPAddressID.ValueString()
+		}
+		networks = append(networks, n)
 	}
 	createRequest := &xelon.DeviceCreateRequest{
 		CPUCores:             int(data.CPUCoreCount.ValueInt64()),
