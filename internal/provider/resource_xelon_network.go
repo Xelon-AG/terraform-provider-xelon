@@ -3,7 +3,6 @@ package provider
 import (
 	"context"
 
-	"github.com/hashicorp/terraform-plugin-framework-validators/int64validator"
 	"github.com/hashicorp/terraform-plugin-framework-validators/stringvalidator"
 	"github.com/hashicorp/terraform-plugin-framework/path"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
@@ -14,6 +13,7 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/types"
 	"github.com/hashicorp/terraform-plugin-log/tflog"
 
+	"github.com/Xelon-AG/terraform-provider-xelon/internal/provider/helper"
 	"github.com/Xelon-AG/xelon-sdk-go/xelon"
 )
 
@@ -63,8 +63,8 @@ The network resource allows you to manage Xelon networks.
 				Required:            true,
 			},
 			"dns_primary": schema.StringAttribute{
-				MarkdownDescription: "The primary DNS server address.",
-				Required:            true,
+				MarkdownDescription: "The primary DNS server address. Must be specified if network type is `LAN`.",
+				Optional:            true,
 			},
 			"dns_secondary": schema.StringAttribute{
 				MarkdownDescription: "The secondary DNS server address.",
@@ -75,8 +75,8 @@ The network resource allows you to manage Xelon networks.
 				},
 			},
 			"gateway": schema.StringAttribute{
-				MarkdownDescription: "The default gateway address.",
-				Required:            true,
+				MarkdownDescription: "The default gateway address. Must be specified if network type is `LAN`.",
+				Optional:            true,
 			},
 			"id": schema.StringAttribute{
 				MarkdownDescription: "The ID of the network.",
@@ -93,15 +93,13 @@ The network resource allows you to manage Xelon networks.
 				},
 			},
 			"network": schema.StringAttribute{
-				MarkdownDescription: "The network definition.",
-				Required:            true,
+				MarkdownDescription: "The network definition. Must be specified if network type is `LAN`.",
+				Optional:            true,
 			},
 			"network_speed": schema.Int64Attribute{
 				MarkdownDescription: "The speed of the network in MBit. Must be one of `1000` or `10000`.",
 				Required:            true,
-				Validators: []validator.Int64{
-					int64validator.OneOf([]int64{1_000, 10_000}...),
-				},
+				// TODO: add in64validator depends on network type
 			},
 			"subnet_size": schema.Int64Attribute{
 				MarkdownDescription: "The subnet size of the network.",
@@ -119,7 +117,22 @@ The network resource allows you to manage Xelon networks.
 				MarkdownDescription: "The network type. Must be one of `LAN` or `WAN`.",
 				Required:            true,
 				Validators: []validator.String{
-					stringvalidator.OneOf([]string{"LAN", "WAN"}...),
+					helper.NetworkTypeRequires("LAN", path.Expressions{
+						path.MatchRoot("cloud_id"),
+						path.MatchRoot("dns_primary"),
+						path.MatchRoot("gateway"),
+						path.MatchRoot("network"),
+						path.MatchRoot("network_speed"),
+						path.MatchRoot("subnet_size"),
+					}...,
+					),
+					helper.NetworkTypeRequires("WAN", path.Expressions{
+						path.MatchRoot("cloud_id"),
+						path.MatchRoot("name"),
+						path.MatchRoot("network_speed"),
+						path.MatchRoot("subnet_size"),
+					}...,
+					),
 				},
 			},
 		},
@@ -203,6 +216,8 @@ func (r *networkResource) Create(ctx context.Context, request resource.CreateReq
 	}
 	if data.Type.ValueString() == "WAN" {
 		tflog.Info(ctx, "Creating WAN network", map[string]any{"type": data.Type.ValueString()})
+
+		//
 	}
 
 	diags = response.State.Set(ctx, &data)

@@ -38,17 +38,17 @@ data "xelon_cloud" "hcp" {
 ### Required
 
 - `cloud_id` (String) The ID of the cloud.
-- `dns_primary` (String) The primary DNS server address.
-- `gateway` (String) The default gateway address.
 - `name` (String) The network name.
-- `network` (String) The network definition.
 - `network_speed` (Number) The speed of the network in MBit. Must be one of `1000` or `10000`.
 - `subnet_size` (Number) The subnet size of the network.
 - `type` (String) The network type. Must be one of `LAN` or `WAN`.
 
 ### Optional
 
+- `dns_primary` (String) The primary DNS server address. Must be specified if network type is `LAN`.
 - `dns_secondary` (String) The secondary DNS server address.
+- `gateway` (String) The default gateway address. Must be specified if network type is `LAN`.
+- `network` (String) The network definition. Must be specified if network type is `LAN`.
 - `tenant_id` (String) The tenant ID to whom the network belongs.
 
 ### Read-Only
