@@ -2,7 +2,6 @@ package helper
 
 import (
 	"context"
-	"fmt"
 	"testing"
 
 	"github.com/hashicorp/terraform-plugin-framework/path"
@@ -158,8 +157,6 @@ func TestNetworkTypeValidator(t *testing.T) {
 			v.ValidateString(context.TODO(), test.request, response)
 
 			assert.Equal(t, test.expectedErrors, response.Diagnostics.ErrorsCount())
-
-			fmt.Println(response.Diagnostics)
 		})
 	}
 }
