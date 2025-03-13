@@ -19,7 +19,7 @@ const (
 	deviceStateReady            = "ready"
 )
 
-func statusPowerState(ctx context.Context, client *xelon.Client, deviceID string) retry.StateRefreshFunc {
+func statusDevicePowerState(ctx context.Context, client *xelon.Client, deviceID string) retry.StateRefreshFunc {
 	return func() (any, string, error) {
 		device, resp, err := client.Devices.Get(ctx, deviceID)
 		if err != nil {
@@ -44,7 +44,7 @@ func statusPowerState(ctx context.Context, client *xelon.Client, deviceID string
 	}
 }
 
-func statusState(ctx context.Context, client *xelon.Client, deviceID string) retry.StateRefreshFunc {
+func statusDeviceState(ctx context.Context, client *xelon.Client, deviceID string) retry.StateRefreshFunc {
 	return func() (any, string, error) {
 		device, _, err := client.Devices.Get(ctx, deviceID)
 		if err != nil {

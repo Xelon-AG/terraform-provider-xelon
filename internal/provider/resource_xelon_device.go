@@ -29,7 +29,7 @@ type deviceResource struct {
 	client *xelon.Client
 }
 
-// deviceResourceModel maps the tag resource schema data.
+// deviceResourceModel maps the device resource schema data.
 type deviceResourceModel struct {
 	BackupJobID      types.Int64                  `tfsdk:"backup_job_id"`
 	CPUCoreCount     types.Int64                  `tfsdk:"cpu_core_count"`
@@ -101,7 +101,7 @@ Devices are the virtual machines that run your applications.
 				},
 			},
 			"hostname": schema.StringAttribute{
-				MarkdownDescription: "The hostname of the device",
+				MarkdownDescription: "The hostname of the device.",
 				Required:            true,
 			},
 			"id": schema.StringAttribute{
@@ -321,7 +321,110 @@ func (r *deviceResource) Read(ctx context.Context, request resource.ReadRequest,
 }
 
 func (r *deviceResource) Update(ctx context.Context, request resource.UpdateRequest, response *resource.UpdateResponse) {
-	panic("implement me")
+	// var plan, state deviceResourceModel
+	//
+	// // read plan and state data into the model
+	// response.Diagnostics.Append(request.Plan.Get(ctx, &plan)...)
+	// response.Diagnostics.Append(request.State.Get(ctx, &state)...)
+	// if response.Diagnostics.HasError() {
+	// 	return
+	// }
+	//
+	// deviceID := state.ID.ValueString()
+	//
+	// if !plan.DisplayName.Equal(state.DisplayName) {
+	// 	updateRequest := &xelon.DeviceUpdateRequest{
+	// 		DisplayName: plan.DisplayName.ValueString(),
+	// 	}
+	// 	tflog.Debug(ctx, "Updating device name", map[string]any{"device_id": deviceID, "payload": updateRequest})
+	// 	updatedDevice, _, err := r.client.Devices.Update(ctx, deviceID, updateRequest)
+	// 	if err != nil {
+	// 		response.Diagnostics.AddError("Unable to update device name", err.Error())
+	// 		return
+	// 	}
+	// 	tflog.Debug(ctx, "Updated device name", map[string]any{"data": updatedDevice})
+	//
+	// 	plan.DisplayName = types.StringValue(updatedDevice.DisplayName)
+	// }
+	//
+	// if !plan.CPUCoreCount.Equal(state.CPUCoreCount) || !plan.Memory.Equal(state.Memory) {
+	// 	// device must be stopped before changing CPU count and RAM
+	// 	tflog.Debug(ctx, "Getting device", map[string]any{"device_id": deviceID})
+	// 	device, _, err := r.client.Devices.Get(ctx, deviceID)
+	// 	if err != nil {
+	// 		response.Diagnostics.AddError("Unable to get device", err.Error())
+	// 		return
+	// 	}
+	// 	tflog.Debug(ctx, "Got device", map[string]any{"data": device})
+	// 	if device.PoweredOn {
+	// 		tflog.Info(ctx, "Stopping device", map[string]any{"device_id": deviceID})
+	// 		_, err := r.client.Devices.Stop(ctx, deviceID)
+	// 		if err != nil {
+	// 			response.Diagnostics.AddError("Unable to stop device", err.Error())
+	// 			return
+	// 		}
+	//
+	// 		err = helper.WaitDevicePowerStateOff(ctx, r.client, deviceID)
+	// 		if err != nil {
+	// 			response.Diagnostics.AddError("Unable to wait for device to be powered off", err.Error())
+	// 			return
+	// 		}
+	// 	}
+	//
+	// 	updateRequest := &xelon.DeviceUpdateHardwareRequest{
+	// 		CPUCores: int(plan.CPUCoreCount.ValueInt64()),
+	// 		RAM:      int(plan.Memory.ValueInt64()),
+	// 	}
+	// 	tflog.Debug(ctx, "Updating device hardware", map[string]any{"device_id": deviceID, "payload": updateRequest})
+	// 	updatedDevice, _, err := r.client.Devices.UpdateHardware(ctx, deviceID, updateRequest)
+	// 	if err != nil {
+	// 		response.Diagnostics.AddError("Unable to update device hardware", err.Error())
+	// 		return
+	// 	}
+	// 	tflog.Debug(ctx, "Updated device hardware", map[string]any{"data": updatedDevice})
+	//
+	// 	tflog.Debug(ctx, "Getting device with enriched data", map[string]any{"device_id": deviceID})
+	// 	device, _, err = r.client.Devices.Get(ctx, deviceID)
+	// 	if err != nil {
+	// 		response.Diagnostics.AddError("Unable to get device", err.Error())
+	// 		return
+	// 	}
+	// 	tflog.Debug(ctx, "Got device with enriched data", map[string]any{"data": device})
+	// 	if !device.PoweredOn {
+	// 		tflog.Info(ctx, "Starting device", map[string]any{"device_id": deviceID})
+	// 		_, err := r.client.Devices.Start(ctx, deviceID)
+	// 		if err != nil {
+	// 			response.Diagnostics.AddError("Unable to start device", err.Error())
+	// 			return
+	// 		}
+	//
+	// 		err = helper.WaitDevicePowerStateOn(ctx, r.client, deviceID)
+	// 		if err != nil {
+	// 			response.Diagnostics.AddError("Unable to wait for device to be powered on", err.Error())
+	// 			return
+	// 		}
+	// 	}
+	//
+	// 	err = helper.WaitDeviceHostnameConfigured(ctx, r.client, deviceID)
+	// 	if err != nil {
+	// 		response.Diagnostics.AddError("Unable to wait for device to have hostname configured", err.Error())
+	// 		return
+	// 	}
+	//
+	// 	tflog.Debug(ctx, "Getting device with enriched data", map[string]any{"device_id": deviceID})
+	// 	device, _, err = r.client.Devices.Get(ctx, deviceID)
+	// 	if err != nil {
+	// 		response.Diagnostics.AddError("Unable to get device", err.Error())
+	// 		return
+	// 	}
+	// 	tflog.Debug(ctx, "Got device with enriched data", map[string]any{"data": device})
+	//
+	// 	plan.CPUCoreCount = types.Int64Value(int64(device.CPUCores))
+	// 	plan.Memory = types.Int64Value(int64(device.RAM))
+	// }
+	//
+	// diags := response.State.Set(ctx, &plan)
+	// response.Diagnostics.Append(diags...)
 }
 
 func (r *deviceResource) Delete(ctx context.Context, request resource.DeleteRequest, response *resource.DeleteResponse) {

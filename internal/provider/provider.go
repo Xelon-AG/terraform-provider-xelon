@@ -137,6 +137,7 @@ func (p *xelonProvider) DataSources(_ context.Context) []func() datasource.DataS
 func (p *xelonProvider) Resources(_ context.Context) []func() resource.Resource {
 	return []func() resource.Resource{
 		NewDeviceResource,
+		NewLoadBalancerResource,
 		NewNetworkResource,
 		NewSSHKeyResource,
 	}

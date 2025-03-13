@@ -17,7 +17,7 @@ func WaitDevicePowerStateOn(ctx context.Context, client *xelon.Client, deviceID 
 		Timeout:    10 * time.Minute,
 		MinTimeout: 5 * time.Second,
 		Delay:      3 * time.Second,
-		Refresh:    statusPowerState(ctx, client, deviceID),
+		Refresh:    statusDevicePowerState(ctx, client, deviceID),
 	}
 
 	if _, err := stateConf.WaitForStateContext(ctx); err != nil {
@@ -33,7 +33,7 @@ func WaitDevicePowerStateOff(ctx context.Context, client *xelon.Client, deviceID
 		Timeout:    10 * time.Minute,
 		MinTimeout: 5 * time.Second,
 		Delay:      3 * time.Second,
-		Refresh:    statusPowerState(ctx, client, deviceID),
+		Refresh:    statusDevicePowerState(ctx, client, deviceID),
 	}
 
 	if _, err := stateConf.WaitForStateContext(ctx); err != nil {
@@ -49,7 +49,7 @@ func WaitDeviceStateReady(ctx context.Context, client *xelon.Client, deviceID st
 		Timeout:    10 * time.Minute,
 		MinTimeout: 5 * time.Second,
 		Delay:      3 * time.Second,
-		Refresh:    statusState(ctx, client, deviceID),
+		Refresh:    statusDeviceState(ctx, client, deviceID),
 	}
 
 	if _, err := stateConf.WaitForStateContext(ctx); err != nil {
