@@ -87,7 +87,7 @@ Load balancers sit in front of your application and distribute incoming traffic 
 			},
 			"network_id": schema.StringAttribute{
 				MarkdownDescription: "The network ID used to create the load balancer.",
-				Optional:            true,
+				Required:            true,
 			},
 			"tenant_id": schema.StringAttribute{
 				MarkdownDescription: "The tenant ID to whom the load balancer belongs.",

@@ -44,7 +44,7 @@ resource "xelon_device" "server" {
 - `cpu_core_count` (Number) The number of CPU cores to allocate to the device.
 - `disk_size` (Number) The size of the primary disk in GB.
 - `display_name` (String) The name of the device.
-- `hostname` (String) The hostname of the device
+- `hostname` (String) The hostname of the device.
 - `memory` (Number) The amount of RAM in GB to allocate to the device.
 - `networks` (Attributes Set) The networks configured for the device. (see [below for nested schema](#nestedatt--networks))
 - `password` (String, Sensitive) The password for the device root or administrator user.
