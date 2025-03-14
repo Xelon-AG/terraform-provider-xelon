@@ -1,4 +1,11 @@
 
+<a name="v1.0.0-rc8"></a>
+## v1.0.0-rc8 (2025-03-14)
+### Bug Fixes
+* **resource/xelon_load_balancer**: make network_id mandatory
+### Features
+* **resource/xelon_load_balancer**: use v2 sdk endpoints
+
 <a name="v1.0.0-rc7"></a>
 ## v1.0.0-rc7 (2025-02-13)
 ### Bug Fixes
