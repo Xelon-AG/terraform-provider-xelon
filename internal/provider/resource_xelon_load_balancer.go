@@ -201,6 +201,7 @@ func (r *loadBalancerResource) Create(ctx context.Context, request resource.Crea
 	}
 	data.CloudID = types.StringValue(loadBalancer.Cloud.ID)
 	data.DeviceIDs, diags = types.SetValueFrom(ctx, types.StringType, deviceIDs)
+	response.Diagnostics.Append(diags...)
 	data.ExternalIPAddress = types.StringValue(loadBalancer.ExternalIPAddress)
 	data.ID = types.StringValue(loadBalancer.ID)
 	data.InternalIPAddress = types.StringValue(loadBalancer.InternalIPAddress)
@@ -226,7 +227,7 @@ func (r *loadBalancerResource) Read(ctx context.Context, request resource.ReadRe
 	loadBalancer, resp, err := r.client.LoadBalancers.Get(ctx, loadBalancerID)
 	if err != nil {
 		if resp != nil && resp.StatusCode == http.StatusNotFound {
-			// if the tag is somehow already destroyed, mark as successfully gone
+			// if the load balancer is somehow already destroyed, mark as successfully gone
 			response.State.RemoveResource(ctx)
 			return
 		}
@@ -242,6 +243,7 @@ func (r *loadBalancerResource) Read(ctx context.Context, request resource.ReadRe
 	}
 	data.CloudID = types.StringValue(loadBalancer.Cloud.ID)
 	data.DeviceIDs, diags = types.SetValueFrom(ctx, types.StringType, deviceIDs)
+	response.Diagnostics.Append(diags...)
 	data.ExternalIPAddress = types.StringValue(loadBalancer.ExternalIPAddress)
 	data.ID = types.StringValue(loadBalancer.ID)
 	data.InternalIPAddress = types.StringValue(loadBalancer.InternalIPAddress)
@@ -275,6 +277,14 @@ func (r *loadBalancerResource) Update(ctx context.Context, request resource.Upda
 			return
 		}
 		tflog.Debug(ctx, "Updated load balancer", map[string]any{"load_balancer_id": loadBalancerID, "data": loadBalancer})
+
+		tflog.Debug(ctx, "Getting load balancer with enriched data", map[string]any{"load_balancer_id": loadBalancerID})
+		loadBalancer, _, err = r.client.LoadBalancers.Get(ctx, loadBalancerID)
+		if err != nil {
+			response.Diagnostics.AddError("Unable to get load balancer", err.Error())
+			return
+		}
+		tflog.Debug(ctx, "Got load balancer with enriched data", map[string]any{"data": loadBalancer})
 
 		plan.Name = types.StringValue(loadBalancer.Name)
 	}
@@ -335,6 +345,7 @@ func (r *loadBalancerResource) Update(ctx context.Context, request resource.Upda
 				deviceIDs = append(deviceIDs, device.ID)
 			}
 			plan.DeviceIDs, diags = types.SetValueFrom(ctx, types.StringType, deviceIDs)
+			response.Diagnostics.Append(diags...)
 		}
 	}
 
