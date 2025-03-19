@@ -1,4 +1,14 @@
 
+<a name="v1.0.0-rc9"></a>
+## v1.0.0-rc9 (2025-03-19)
+### Bug Fixes
+* **resource/xelon_load_balancer**: change type for assigned devices
+### Documentation
+* **resource/xelon_load_balancer_forwarding_rule**: generate documentation with example
+### Features
+* **resource/xelon_load_balancer**: allow to assign devices to load balancer
+* **resource/xelon_load_balancer_forwarding_rule**: add new resource to create forwarding rules
+
 <a name="v1.0.0-rc8"></a>
 ## v1.0.0-rc8 (2025-03-14)
 ### Bug Fixes
