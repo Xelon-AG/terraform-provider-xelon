@@ -5,7 +5,7 @@ go 1.23
 toolchain go1.23.3
 
 require (
-	github.com/Xelon-AG/xelon-sdk-go v0.15.2-0.20250316161928-f085649ac861
+	github.com/Xelon-AG/xelon-sdk-go v0.15.2-0.20250317020556-2eebef54eb9d
 	github.com/hashicorp/terraform-plugin-framework v1.13.0
 	github.com/hashicorp/terraform-plugin-framework-validators v0.16.0
 	github.com/hashicorp/terraform-plugin-go v0.26.0

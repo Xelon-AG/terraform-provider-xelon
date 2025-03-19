@@ -6,10 +6,12 @@ import (
 	"slices"
 
 	"github.com/hashicorp/terraform-plugin-framework-validators/stringvalidator"
+	"github.com/hashicorp/terraform-plugin-framework/attr"
 	"github.com/hashicorp/terraform-plugin-framework/path"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/planmodifier"
+	"github.com/hashicorp/terraform-plugin-framework/resource/schema/setdefault"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/stringplanmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/schema/validator"
 	"github.com/hashicorp/terraform-plugin-framework/types"
@@ -32,20 +34,15 @@ type loadBalancerResource struct {
 
 // loadBalancerResourceModel maps the load balancer resource schema data.
 type loadBalancerResourceModel struct {
-	CloudID           types.String                      `tfsdk:"cloud_id"`
-	Devices           []loadBalancerDeviceResourceModel `tfsdk:"devices"`
-	ExternalIPAddress types.String                      `tfsdk:"external_ipv4_address"`
-	ID                types.String                      `tfsdk:"id"`
-	InternalIPAddress types.String                      `tfsdk:"internal_ipv4_address"`
-	Name              types.String                      `tfsdk:"name"`
-	NetworkID         types.String                      `tfsdk:"network_id"`
-	TenantID          types.String                      `tfsdk:"tenant_id"`
-	Type              types.String                      `tfsdk:"type"`
-}
-
-type loadBalancerDeviceResourceModel struct {
-	ID   types.String `tfsdk:"id"`
-	Name types.String `tfsdk:"name"`
+	CloudID           types.String `tfsdk:"cloud_id"`
+	DeviceIDs         types.Set    `tfsdk:"device_ids"` // []types.String
+	ExternalIPAddress types.String `tfsdk:"external_ipv4_address"`
+	ID                types.String `tfsdk:"id"`
+	InternalIPAddress types.String `tfsdk:"internal_ipv4_address"`
+	Name              types.String `tfsdk:"name"`
+	NetworkID         types.String `tfsdk:"network_id"`
+	TenantID          types.String `tfsdk:"tenant_id"`
+	Type              types.String `tfsdk:"type"`
 }
 
 func NewLoadBalancerResource() resource.Resource {
@@ -69,22 +66,12 @@ Load balancers sit in front of your application and distribute incoming traffic 
 				MarkdownDescription: "The ID of the cloud associated with the load balancer.",
 				Required:            true,
 			},
-			"devices": schema.SetNestedAttribute{
-				MarkdownDescription: "The devices assigned to the load balancer.",
-				NestedObject: schema.NestedAttributeObject{
-					Attributes: map[string]schema.Attribute{
-						"id": schema.StringAttribute{
-							MarkdownDescription: "The assigned device ID.",
-							Required:            true,
-						},
-						"name": schema.StringAttribute{
-							MarkdownDescription: "The name of the assigned device.",
-							Computed:            true,
-						},
-					},
-				},
-				Optional: true,
-				Computed: true,
+			"device_ids": schema.SetAttribute{
+				MarkdownDescription: "The list of device IDs to associate with the load balancer.",
+				ElementType:         types.StringType,
+				Optional:            true,
+				Computed:            true,
+				Default:             setdefault.StaticValue(types.SetValueMust(types.StringType, []attr.Value{})),
 			},
 			"external_ipv4_address": schema.StringAttribute{
 				MarkdownDescription: "The external IP address of the load balancer.",
@@ -104,6 +91,9 @@ Load balancers sit in front of your application and distribute incoming traffic 
 				MarkdownDescription: "The internal IP address of the load balancer. If not provided, an internal IP will be automatically assigned.",
 				Optional:            true,
 				Computed:            true,
+				PlanModifiers: []planmodifier.String{
+					stringplanmodifier.UseStateForUnknown(),
+				},
 			},
 			"name": schema.StringAttribute{
 				MarkdownDescription: "The load balancer name.",
@@ -165,12 +155,18 @@ func (r *loadBalancerResource) Create(ctx context.Context, request resource.Crea
 	if data.InternalIPAddress.ValueString() != "" {
 		createRequest.InternalIPAddress = data.InternalIPAddress.ValueString()
 	}
-	if len(data.Devices) > 0 {
-		var deviceIDs []string
-		for _, device := range data.Devices {
-			deviceIDs = append(deviceIDs, device.ID.ValueString())
+	if len(data.DeviceIDs.Elements()) > 0 {
+		deviceIDs := make([]types.String, 0, len(data.DeviceIDs.Elements()))
+		diags = data.DeviceIDs.ElementsAs(ctx, &deviceIDs, false)
+		response.Diagnostics.Append(diags...)
+		if response.Diagnostics.HasError() {
+			return
 		}
-		createRequest.AssignedDeviceIDs = deviceIDs
+		var assignedDeviceIDs []string
+		for _, deviceID := range deviceIDs {
+			assignedDeviceIDs = append(assignedDeviceIDs, deviceID.ValueString())
+		}
+		createRequest.AssignedDeviceIDs = assignedDeviceIDs
 	}
 	tflog.Debug(ctx, "Creating load balancer", map[string]any{"payload": createRequest})
 	createdLoadBalancer, _, err := r.client.LoadBalancers.Create(ctx, createRequest)
@@ -199,15 +195,12 @@ func (r *loadBalancerResource) Create(ctx context.Context, request resource.Crea
 	tflog.Debug(ctx, "Got load balancer with enriched properties", map[string]any{"data": loadBalancer})
 
 	// map response body to attributes
-	data.CloudID = types.StringValue(loadBalancer.Cloud.ID)
-	var devices []loadBalancerDeviceResourceModel
+	deviceIDs := make([]string, 0, len(loadBalancer.AssignedDevices))
 	for _, device := range loadBalancer.AssignedDevices {
-		devices = append(devices, loadBalancerDeviceResourceModel{
-			ID:   types.StringValue(device.ID),
-			Name: types.StringValue(device.Name),
-		})
+		deviceIDs = append(deviceIDs, device.ID)
 	}
-	data.Devices = devices
+	data.CloudID = types.StringValue(loadBalancer.Cloud.ID)
+	data.DeviceIDs, diags = types.SetValueFrom(ctx, types.StringType, deviceIDs)
 	data.ExternalIPAddress = types.StringValue(loadBalancer.ExternalIPAddress)
 	data.ID = types.StringValue(loadBalancer.ID)
 	data.InternalIPAddress = types.StringValue(loadBalancer.InternalIPAddress)
@@ -243,15 +236,12 @@ func (r *loadBalancerResource) Read(ctx context.Context, request resource.ReadRe
 	tflog.Debug(ctx, "Got load balancer", map[string]any{"data": loadBalancer})
 
 	// map response body to attributes
-	data.CloudID = types.StringValue(loadBalancer.Cloud.ID)
-	var devices []loadBalancerDeviceResourceModel
+	deviceIDs := make([]string, 0, len(loadBalancer.AssignedDevices))
 	for _, device := range loadBalancer.AssignedDevices {
-		devices = append(devices, loadBalancerDeviceResourceModel{
-			ID:   types.StringValue(device.ID),
-			Name: types.StringValue(device.Name),
-		})
+		deviceIDs = append(deviceIDs, device.ID)
 	}
-	data.Devices = devices
+	data.CloudID = types.StringValue(loadBalancer.Cloud.ID)
+	data.DeviceIDs, diags = types.SetValueFrom(ctx, types.StringType, deviceIDs)
 	data.ExternalIPAddress = types.StringValue(loadBalancer.ExternalIPAddress)
 	data.ID = types.StringValue(loadBalancer.ID)
 	data.InternalIPAddress = types.StringValue(loadBalancer.InternalIPAddress)
@@ -289,49 +279,63 @@ func (r *loadBalancerResource) Update(ctx context.Context, request resource.Upda
 		plan.Name = types.StringValue(loadBalancer.Name)
 	}
 
-	var planDeviceIDs []string
-	for _, planDevice := range plan.Devices {
-		planDeviceIDs = append(planDeviceIDs, planDevice.ID.ValueString())
-	}
-	slices.Sort(planDeviceIDs)
-	var stateDeviceIDs []string
-	for _, stateDevice := range state.Devices {
-		stateDeviceIDs = append(stateDeviceIDs, stateDevice.ID.ValueString())
-	}
-	slices.Sort(stateDeviceIDs)
-	if !slices.Equal(planDeviceIDs, stateDeviceIDs) {
-		updateRequest := &xelon.LoadBalancerUpdateAssignedDevicesRequest{
-			DeviceIDs: planDeviceIDs,
-		}
-		tflog.Debug(ctx, "Updating load balancer assigned devices", map[string]any{"load_balancer_id": loadBalancerID, "payload": updateRequest})
-		_, err := r.client.LoadBalancers.UpdateAssignedDevices(ctx, loadBalancerID, updateRequest)
-		if err != nil {
-			response.Diagnostics.AddError("Unable to update load balancer", err.Error())
+	if !plan.DeviceIDs.Equal(state.DeviceIDs) {
+		// get and sort device ids from plan for comparison later
+		tfPlanDeviceIDs := make([]types.String, 0, len(plan.DeviceIDs.Elements()))
+		diags := plan.DeviceIDs.ElementsAs(ctx, &tfPlanDeviceIDs, false)
+		response.Diagnostics.Append(diags...)
+		if response.Diagnostics.HasError() {
 			return
 		}
-		tflog.Debug(ctx, "Updated load balancer assigned devices", map[string]any{"load_balancer_id": loadBalancerID})
+		var planDeviceIDs []string
+		for _, tfPlanDeviceID := range tfPlanDeviceIDs {
+			planDeviceIDs = append(planDeviceIDs, tfPlanDeviceID.ValueString())
+		}
+		slices.Sort(planDeviceIDs)
 
-		tflog.Debug(ctx, "Getting load balancer with enriched data", map[string]any{"load_balancer_id": loadBalancerID})
-		loadBalancer, resp, err := r.client.LoadBalancers.Get(ctx, loadBalancerID)
-		if err != nil {
-			if resp != nil && resp.StatusCode == http.StatusNotFound {
-				// if the tag is somehow already destroyed, mark as successfully gone
-				response.State.RemoveResource(ctx)
+		// get and sort device ids from state for comparison later
+		tfStateDeviceIDs := make([]types.String, 0, len(state.DeviceIDs.Elements()))
+		diags = state.DeviceIDs.ElementsAs(ctx, &tfStateDeviceIDs, false)
+		response.Diagnostics.Append(diags...)
+		if response.Diagnostics.HasError() {
+			return
+		}
+		var stateDeviceIDs []string
+		for _, tfStateDeviceID := range tfStateDeviceIDs {
+			stateDeviceIDs = append(stateDeviceIDs, tfStateDeviceID.ValueString())
+		}
+		slices.Sort(stateDeviceIDs)
+
+		if !slices.Equal(planDeviceIDs, stateDeviceIDs) {
+			// backend API cannot deal with nil, set empty slice
+			if planDeviceIDs == nil {
+				planDeviceIDs = []string{}
+			}
+			updateRequest := &xelon.LoadBalancerUpdateAssignedDevicesRequest{
+				DeviceIDs: planDeviceIDs,
+			}
+			tflog.Debug(ctx, "Updating load balancer assigned devices", map[string]any{"load_balancer_id": loadBalancerID, "payload": updateRequest})
+			_, err := r.client.LoadBalancers.UpdateAssignedDevices(ctx, loadBalancerID, updateRequest)
+			if err != nil {
+				response.Diagnostics.AddError("Unable to update load balancer", err.Error())
 				return
 			}
-			response.Diagnostics.AddError("Unable to get load balancer", err.Error())
-			return
-		}
-		tflog.Debug(ctx, "Got load balancer with enriched data", map[string]any{"data": loadBalancer})
+			tflog.Debug(ctx, "Updated load balancer assigned devices", map[string]any{"load_balancer_id": loadBalancerID})
 
-		var devices []loadBalancerDeviceResourceModel
-		for _, device := range loadBalancer.AssignedDevices {
-			devices = append(devices, loadBalancerDeviceResourceModel{
-				ID:   types.StringValue(device.ID),
-				Name: types.StringValue(device.Name),
-			})
+			tflog.Debug(ctx, "Getting load balancer with enriched data", map[string]any{"load_balancer_id": loadBalancerID})
+			loadBalancer, _, err := r.client.LoadBalancers.Get(ctx, loadBalancerID)
+			if err != nil {
+				response.Diagnostics.AddError("Unable to get load balancer", err.Error())
+				return
+			}
+			tflog.Debug(ctx, "Got load balancer with enriched data", map[string]any{"data": loadBalancer})
+
+			deviceIDs := make([]string, 0, len(loadBalancer.AssignedDevices))
+			for _, device := range loadBalancer.AssignedDevices {
+				deviceIDs = append(deviceIDs, device.ID)
+			}
+			plan.DeviceIDs, diags = types.SetValueFrom(ctx, types.StringType, deviceIDs)
 		}
-		plan.Devices = devices
 	}
 
 	diags := response.State.Set(ctx, &plan)
