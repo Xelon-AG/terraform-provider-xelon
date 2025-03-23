@@ -1,4 +1,11 @@
 
+<a name="v1.0.0-rc10"></a>
+## v1.0.0-rc10 (2025-03-24)
+### Documentation
+* **resource/xelon_firewall**: update documentation
+### Features
+* **resource/xelon_firewall**: add new resource to manage firewalls
+
 <a name="v1.0.0-rc9"></a>
 ## v1.0.0-rc9 (2025-03-19)
 ### Bug Fixes
