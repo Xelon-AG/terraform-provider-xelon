@@ -1,4 +1,11 @@
 
+<a name="v1.0.0-rc11"></a>
+## v1.0.0-rc11 (2025-04-07)
+### Documentation
+* **resource/xelon_firewall_forwarding_rule**: generate documentation with example
+### Features
+* **resource/xelon_firewall_forwarding_rule**: add new resource to create forwarding rules for firewalls
+
 <a name="v1.0.0-rc10"></a>
 ## v1.0.0-rc10 (2025-03-24)
 ### Documentation
