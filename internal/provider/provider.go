@@ -138,6 +138,7 @@ func (p *xelonProvider) Resources(_ context.Context) []func() resource.Resource 
 	return []func() resource.Resource{
 		NewDeviceResource,
 		NewFirewallResource,
+		NewFirewallForwardingRuleResource,
 		NewLoadBalancerResource,
 		NewLoadBalancerForwardingRuleResource,
 		NewNetworkResource,
