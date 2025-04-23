@@ -3,7 +3,6 @@ package provider
 import (
 	"context"
 	"net/http"
-	"strconv"
 
 	"github.com/hashicorp/terraform-plugin-framework-validators/int64validator"
 	"github.com/hashicorp/terraform-plugin-framework-validators/setvalidator"
@@ -162,7 +161,7 @@ func (r *loadBalancerForwardingRuleResource) Create(ctx context.Context, request
 	}
 	ipAddresses = make([]string, 0, len(forwardingRule.IPAddresses))
 	ipAddresses = append(ipAddresses, forwardingRule.IPAddresses...)
-	data.ID = types.StringValue(strconv.Itoa(forwardingRule.ID))
+	data.ID = types.StringValue(forwardingRule.ID)
 	data.IPAddresses, diags = types.SetValueFrom(ctx, types.StringType, ipAddresses)
 	response.Diagnostics.Append(diags...)
 	data.LoadBalancerID = types.StringValue(loadBalancerID)
@@ -196,11 +195,7 @@ func (r *loadBalancerForwardingRuleResource) Read(ctx context.Context, request r
 	tflog.Debug(ctx, "Got load balancer with forwarding rules", map[string]any{"data": loadBalancer})
 
 	var forwardingRule *xelon.LoadBalancerForwardingRule
-	forwardingRuleID, err := strconv.Atoi(data.ID.ValueString())
-	if err != nil {
-		response.Diagnostics.AddError("Unable to convert forwarding rule id", err.Error())
-		return
-	}
+	forwardingRuleID := data.ID.ValueString()
 	for _, lbForwardingRule := range loadBalancer.ForwardingRules {
 		if lbForwardingRule.ID == forwardingRuleID {
 			forwardingRule = &lbForwardingRule
@@ -224,7 +219,7 @@ func (r *loadBalancerForwardingRuleResource) Read(ctx context.Context, request r
 	}
 	ipAddresses := make([]string, 0, len(forwardingRule.IPAddresses))
 	ipAddresses = append(ipAddresses, forwardingRule.IPAddresses...)
-	data.ID = types.StringValue(strconv.Itoa(forwardingRule.ID))
+	data.ID = types.StringValue(forwardingRule.ID)
 	data.IPAddresses, diags = types.SetValueFrom(ctx, types.StringType, ipAddresses)
 	response.Diagnostics.Append(diags...)
 	data.LoadBalancerID = types.StringValue(loadBalancerID)
@@ -244,11 +239,7 @@ func (r *loadBalancerForwardingRuleResource) Update(ctx context.Context, request
 	}
 
 	loadBalancerID := data.LoadBalancerID.ValueString()
-	forwardingRuleID, err := strconv.Atoi(data.ID.ValueString())
-	if err != nil {
-		response.Diagnostics.AddError("Unable to convert forwarding rule id", err.Error())
-		return
-	}
+	forwardingRuleID := data.ID.ValueString()
 	tfIPAddresses := make([]types.String, 0, len(data.IPAddresses.Elements()))
 	diags = data.IPAddresses.ElementsAs(ctx, &tfIPAddresses, false)
 	response.Diagnostics.Append(diags...)
@@ -295,7 +286,7 @@ func (r *loadBalancerForwardingRuleResource) Update(ctx context.Context, request
 	}
 	ipAddresses = make([]string, 0, len(forwardingRule.IPAddresses))
 	ipAddresses = append(ipAddresses, forwardingRule.IPAddresses...)
-	data.ID = types.StringValue(strconv.Itoa(forwardingRule.ID))
+	data.ID = types.StringValue(forwardingRule.ID)
 	data.IPAddresses, diags = types.SetValueFrom(ctx, types.StringType, ipAddresses)
 	response.Diagnostics.Append(diags...)
 	data.LoadBalancerID = types.StringValue(loadBalancerID)
@@ -315,16 +306,12 @@ func (r *loadBalancerForwardingRuleResource) Delete(ctx context.Context, request
 	}
 
 	loadBalancerID := data.LoadBalancerID.ValueString()
-	forwardingRuleID, err := strconv.Atoi(data.ID.ValueString())
-	if err != nil {
-		response.Diagnostics.AddError("Unable to convert forwarding rule id", err.Error())
-		return
-	}
+	forwardingRuleID := data.ID.ValueString()
 	tflog.Debug(ctx, "Deleting forwarding rule", map[string]any{
 		"forwarding_rule_id": forwardingRuleID,
 		"load_balancer_id":   loadBalancerID,
 	})
-	_, err = r.client.LoadBalancers.DeleteForwardingRule(ctx, loadBalancerID, forwardingRuleID)
+	_, err := r.client.LoadBalancers.DeleteForwardingRule(ctx, loadBalancerID, forwardingRuleID)
 	if err != nil {
 		response.Diagnostics.AddError("Unable to delete forwarding rule", err.Error())
 		return
