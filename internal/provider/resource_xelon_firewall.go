@@ -4,11 +4,13 @@ import (
 	"context"
 	"net/http"
 
+	"github.com/hashicorp/terraform-plugin-framework-validators/stringvalidator"
 	"github.com/hashicorp/terraform-plugin-framework/path"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/planmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/stringplanmodifier"
+	"github.com/hashicorp/terraform-plugin-framework/schema/validator"
 	"github.com/hashicorp/terraform-plugin-framework/types"
 	"github.com/hashicorp/terraform-plugin-log/tflog"
 
@@ -29,13 +31,15 @@ type firewallResource struct {
 
 // firewallResourceModel maps the firewall resource schema data.
 type firewallResourceModel struct {
-	CloudID           types.String `tfsdk:"cloud_id"`
-	ExternalIPAddress types.String `tfsdk:"external_ipv4_address"`
-	ID                types.String `tfsdk:"id"`
-	InternalIPAddress types.String `tfsdk:"internal_ipv4_address"`
-	Name              types.String `tfsdk:"name"`
-	NetworkID         types.String `tfsdk:"network_id"`
-	TenantID          types.String `tfsdk:"tenant_id"`
+	CloudID             types.String `tfsdk:"cloud_id"`
+	ExternalIPAddress   types.String `tfsdk:"external_ipv4_address"`
+	ExternalIPAddressID types.String `tfsdk:"external_ipv4_address_id"`
+	ExternalNetworkID   types.String `tfsdk:"external_network_id"`
+	ID                  types.String `tfsdk:"id"`
+	InternalIPAddress   types.String `tfsdk:"internal_ipv4_address"`
+	InternalNetworkID   types.String `tfsdk:"internal_network_id"`
+	Name                types.String `tfsdk:"name"`
+	TenantID            types.String `tfsdk:"tenant_id"`
 }
 
 func NewFirewallResource() resource.Resource {
@@ -64,6 +68,27 @@ The firewall resource allows you to manage Xelon firewalls.
 					stringplanmodifier.UseStateForUnknown(),
 				},
 			},
+			"external_ipv4_address_id": schema.StringAttribute{
+				MarkdownDescription: "The external IP address ID of the firewall. Conflict with `external_network_id`.",
+				Optional:            true,
+				PlanModifiers: []planmodifier.String{
+					stringplanmodifier.UseStateForUnknown(),
+				},
+				Validators: []validator.String{
+					stringvalidator.ConflictsWith(path.Expressions{
+						path.MatchRoot("external_network_id"),
+					}...),
+				},
+			},
+			"external_network_id": schema.StringAttribute{
+				MarkdownDescription: "The external network ID used to create the firewall. Conflict with `external_ipv4_address_id`.",
+				Optional:            true,
+				Validators: []validator.String{
+					stringvalidator.ConflictsWith(path.Expressions{
+						path.MatchRoot("external_ipv4_address_id"),
+					}...),
+				},
+			},
 			"id": schema.StringAttribute{
 				MarkdownDescription: "The ID of the firewall.",
 				Computed:            true,
@@ -79,12 +104,12 @@ The firewall resource allows you to manage Xelon firewalls.
 					stringplanmodifier.UseStateForUnknown(),
 				},
 			},
-			"name": schema.StringAttribute{
-				MarkdownDescription: "The firewall name.",
+			"internal_network_id": schema.StringAttribute{
+				MarkdownDescription: "The internal network ID used to create the firewall.",
 				Required:            true,
 			},
-			"network_id": schema.StringAttribute{
-				MarkdownDescription: "The network ID used to create the firewall.",
+			"name": schema.StringAttribute{
+				MarkdownDescription: "The firewall name.",
 				Required:            true,
 			},
 			"tenant_id": schema.StringAttribute{
@@ -124,9 +149,15 @@ func (r *firewallResource) Create(ctx context.Context, request resource.CreateRe
 
 	createRequest := &xelon.FirewallCreateRequest{
 		CloudID:           data.CloudID.ValueString(),
-		InternalNetworkID: data.NetworkID.ValueString(),
+		InternalNetworkID: data.InternalNetworkID.ValueString(),
 		Name:              data.Name.ValueString(),
 		TenantID:          data.TenantID.ValueString(),
+	}
+	if data.ExternalIPAddressID.ValueString() != "" {
+		createRequest.ExternalIPAddressID = data.ExternalIPAddressID.ValueString()
+	}
+	if data.ExternalNetworkID.ValueString() != "" {
+		createRequest.ExternalNetworkID = data.ExternalNetworkID.ValueString()
 	}
 	if data.InternalIPAddress.ValueString() != "" {
 		createRequest.InternalIPAddress = data.InternalIPAddress.ValueString()
