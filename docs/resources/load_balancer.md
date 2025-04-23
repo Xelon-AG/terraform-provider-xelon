@@ -39,6 +39,8 @@ resource "xelon_load_balancer" "backend_ui" {
 ### Optional
 
 - `device_ids` (Set of String) The list of device IDs to associate with the load balancer.
+- `external_ipv4_address_id` (String) The external IP address ID of the load balancer. Conflict with `external_network_id`.
+- `external_network_id` (String) The external network ID used to create the load balancer. Conflict with `external_ipv4_address_id`.
 - `internal_ipv4_address` (String) The internal IP address of the load balancer. If not provided, an internal IP will be automatically assigned.
 
 ### Read-Only

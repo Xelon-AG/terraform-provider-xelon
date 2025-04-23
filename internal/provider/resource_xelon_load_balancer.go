@@ -34,15 +34,17 @@ type loadBalancerResource struct {
 
 // loadBalancerResourceModel maps the load balancer resource schema data.
 type loadBalancerResourceModel struct {
-	CloudID           types.String `tfsdk:"cloud_id"`
-	DeviceIDs         types.Set    `tfsdk:"device_ids"` // []types.String
-	ExternalIPAddress types.String `tfsdk:"external_ipv4_address"`
-	ID                types.String `tfsdk:"id"`
-	InternalIPAddress types.String `tfsdk:"internal_ipv4_address"`
-	Name              types.String `tfsdk:"name"`
-	NetworkID         types.String `tfsdk:"network_id"`
-	TenantID          types.String `tfsdk:"tenant_id"`
-	Type              types.String `tfsdk:"type"`
+	CloudID             types.String `tfsdk:"cloud_id"`
+	DeviceIDs           types.Set    `tfsdk:"device_ids"` // []types.String
+	ExternalIPAddress   types.String `tfsdk:"external_ipv4_address"`
+	ExternalIPAddressID types.String `tfsdk:"external_ipv4_address_id"`
+	ExternalNetworkID   types.String `tfsdk:"external_network_id"`
+	ID                  types.String `tfsdk:"id"`
+	InternalIPAddress   types.String `tfsdk:"internal_ipv4_address"`
+	Name                types.String `tfsdk:"name"`
+	NetworkID           types.String `tfsdk:"network_id"`
+	TenantID            types.String `tfsdk:"tenant_id"`
+	Type                types.String `tfsdk:"type"`
 }
 
 func NewLoadBalancerResource() resource.Resource {
@@ -78,6 +80,27 @@ Load balancers sit in front of your application and distribute incoming traffic 
 				Computed:            true,
 				PlanModifiers: []planmodifier.String{
 					stringplanmodifier.UseStateForUnknown(),
+				},
+			},
+			"external_ipv4_address_id": schema.StringAttribute{
+				MarkdownDescription: "The external IP address ID of the load balancer. Conflict with `external_network_id`.",
+				Optional:            true,
+				PlanModifiers: []planmodifier.String{
+					stringplanmodifier.UseStateForUnknown(),
+				},
+				Validators: []validator.String{
+					stringvalidator.ConflictsWith(path.Expressions{
+						path.MatchRoot("external_network_id"),
+					}...),
+				},
+			},
+			"external_network_id": schema.StringAttribute{
+				MarkdownDescription: "The external network ID used to create the load balancer. Conflict with `external_ipv4_address_id`.",
+				Optional:            true,
+				Validators: []validator.String{
+					stringvalidator.ConflictsWith(path.Expressions{
+						path.MatchRoot("external_ipv4_address_id"),
+					}...),
 				},
 			},
 			"id": schema.StringAttribute{
@@ -151,6 +174,12 @@ func (r *loadBalancerResource) Create(ctx context.Context, request resource.Crea
 		Type:              data.Type.ValueString(),
 		Name:              data.Name.ValueString(),
 		TenantID:          data.TenantID.ValueString(),
+	}
+	if data.ExternalIPAddressID.ValueString() != "" {
+		createRequest.ExternalIPAddressID = data.ExternalIPAddressID.ValueString()
+	}
+	if data.ExternalNetworkID.ValueString() != "" {
+		createRequest.ExternalNetworkID = data.ExternalNetworkID.ValueString()
 	}
 	if data.InternalIPAddress.ValueString() != "" {
 		createRequest.InternalIPAddress = data.InternalIPAddress.ValueString()
