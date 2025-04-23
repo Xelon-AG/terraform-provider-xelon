@@ -1,4 +1,14 @@
 
+<a name="v1.0.0-rc12"></a>
+## v1.0.0-rc12 (2025-04-23)
+### Bug Fixes
+* **resource/xelon_load_balancer_forwarding_rule**: use correct backend type for forwarding rule id
+### Documentation
+* **resource/xelon_firewall**: add example snippet
+### Features
+* **resource/xelon_firewall**: allow to specify external network and ip address
+* **resource/xelon_load_balancer**: allow to specify external network and ip address
+
 <a name="v1.0.0-rc11"></a>
 ## v1.0.0-rc11 (2025-04-07)
 ### Documentation
