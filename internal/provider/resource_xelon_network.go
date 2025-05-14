@@ -65,6 +65,10 @@ The network resource allows you to manage Xelon networks.
 			"dns_primary": schema.StringAttribute{
 				MarkdownDescription: "The primary DNS server address. Must be specified if network type is `LAN`.",
 				Optional:            true,
+				Computed:            true,
+				PlanModifiers: []planmodifier.String{
+					stringplanmodifier.UseStateForUnknown(),
+				},
 			},
 			"dns_secondary": schema.StringAttribute{
 				MarkdownDescription: "The secondary DNS server address.",
@@ -77,6 +81,10 @@ The network resource allows you to manage Xelon networks.
 			"gateway": schema.StringAttribute{
 				MarkdownDescription: "The default gateway address. Must be specified if network type is `LAN`.",
 				Optional:            true,
+				Computed:            true,
+				PlanModifiers: []planmodifier.String{
+					stringplanmodifier.UseStateForUnknown(),
+				},
 			},
 			"id": schema.StringAttribute{
 				MarkdownDescription: "The ID of the network.",
@@ -95,6 +103,10 @@ The network resource allows you to manage Xelon networks.
 			"network": schema.StringAttribute{
 				MarkdownDescription: "The network definition. Must be specified if network type is `LAN`.",
 				Optional:            true,
+				Computed:            true,
+				PlanModifiers: []planmodifier.String{
+					stringplanmodifier.UseStateForUnknown(),
+				},
 			},
 			"network_speed": schema.Int64Attribute{
 				MarkdownDescription: "The speed of the network in MBit. Must be one of `1000` or `10000`.",
