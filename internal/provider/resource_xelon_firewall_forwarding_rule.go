@@ -201,6 +201,17 @@ func (r *firewallForwardingRuleResource) Create(ctx context.Context, request res
 	// map response body to attributes
 	data.ID = types.StringValue(forwardingRule.ID)
 
+	// Map IP addresses from API response
+	destIPAddresses := make([]string, 0, len(forwardingRule.DestinationIPAddresses))
+	destIPAddresses = append(destIPAddresses, forwardingRule.DestinationIPAddresses...)
+	data.DestinationIPAddresses, diags = types.SetValueFrom(ctx, types.StringType, destIPAddresses)
+	response.Diagnostics.Append(diags...)
+
+	srcIPAddresses := make([]string, 0, len(forwardingRule.SourceIPAddresses))
+	srcIPAddresses = append(srcIPAddresses, forwardingRule.SourceIPAddresses...)
+	data.SourceIPAddresses, diags = types.SetValueFrom(ctx, types.StringType, srcIPAddresses)
+	response.Diagnostics.Append(diags...)
+
 	diags = response.State.Set(ctx, &data)
 	response.Diagnostics.Append(diags...)
 }
@@ -246,7 +257,7 @@ func (r *firewallForwardingRuleResource) Read(ctx context.Context, request resou
 	// map response body to attributes
 	destinationIPAddresses := make([]string, 0, len(forwardingRule.DestinationIPAddresses))
 	destinationIPAddresses = append(destinationIPAddresses, forwardingRule.DestinationIPAddresses...)
-	data.SourceIPAddresses, diags = types.SetValueFrom(ctx, types.StringType, destinationIPAddresses)
+	data.DestinationIPAddresses, diags = types.SetValueFrom(ctx, types.StringType, destinationIPAddresses)
 	response.Diagnostics.Append(diags...)
 	sourceIPAddresses := make([]string, 0, len(forwardingRule.SourceIPAddresses))
 	sourceIPAddresses = append(sourceIPAddresses, forwardingRule.SourceIPAddresses...)
@@ -343,7 +354,7 @@ func (r *firewallForwardingRuleResource) Update(ctx context.Context, request res
 	// map response body to attributes
 	destinationIPAddresses = make([]string, 0, len(forwardingRule.DestinationIPAddresses))
 	destinationIPAddresses = append(destinationIPAddresses, forwardingRule.DestinationIPAddresses...)
-	data.SourceIPAddresses, diags = types.SetValueFrom(ctx, types.StringType, destinationIPAddresses)
+	data.DestinationIPAddresses, diags = types.SetValueFrom(ctx, types.StringType, destinationIPAddresses)
 	response.Diagnostics.Append(diags...)
 	sourceIPAddresses = make([]string, 0, len(forwardingRule.SourceIPAddresses))
 	sourceIPAddresses = append(sourceIPAddresses, forwardingRule.SourceIPAddresses...)
