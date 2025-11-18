@@ -31,22 +31,22 @@ type deviceResource struct {
 
 // deviceResourceModel maps the device resource schema data.
 type deviceResourceModel struct {
-	BackupJobID      types.Int64                  `tfsdk:"backup_job_id"`
-	CPUCoreCount     types.Int64                  `tfsdk:"cpu_core_count"`
-	DiskSize         types.Int64                  `tfsdk:"disk_size"`
-	DisplayName      types.String                 `tfsdk:"display_name"`
-	EnableMonitoring types.Bool                   `tfsdk:"enable_monitoring"`
-	Hostname         types.String                 `tfsdk:"hostname"`
-	ID               types.String                 `tfsdk:"id"`
-	Memory           types.Int64                  `tfsdk:"memory"`
-	Networks         []deviceNetworkResourceModel `tfsdk:"networks"`
-	Password         types.String                 `tfsdk:"password"`
-	SendEmail        types.Bool                   `tfsdk:"send_email"`
-	SSHKeyID         types.String                 `tfsdk:"ssh_key_id"`
-	ScriptID         types.String                 `tfsdk:"script_id"`
-	SwapDiskSize     types.Int64                  `tfsdk:"swap_disk_size"`
-	TemplateID       types.String                 `tfsdk:"template_id"`
-	TenantID         types.String                 `tfsdk:"tenant_id"`
+	BackupJobID      types.Int64  `tfsdk:"backup_job_id"`
+	CPUCoreCount     types.Int64  `tfsdk:"cpu_core_count"`
+	DiskSize         types.Int64  `tfsdk:"disk_size"`
+	DisplayName      types.String `tfsdk:"display_name"`
+	EnableMonitoring types.Bool   `tfsdk:"enable_monitoring"`
+	Hostname         types.String `tfsdk:"hostname"`
+	ID               types.String `tfsdk:"id"`
+	Memory           types.Int64  `tfsdk:"memory"`
+	Networks         types.Set    `tfsdk:"networks"`
+	Password         types.String `tfsdk:"password"`
+	SendEmail        types.Bool   `tfsdk:"send_email"`
+	SSHKeyID         types.String `tfsdk:"ssh_key_id"`
+	ScriptID         types.String `tfsdk:"script_id"`
+	SwapDiskSize     types.Int64  `tfsdk:"swap_disk_size"`
+	TemplateID       types.String `tfsdk:"template_id"`
+	TenantID         types.String `tfsdk:"tenant_id"`
 }
 
 type deviceNetworkResourceModel struct {
@@ -86,7 +86,11 @@ Devices are the virtual machines that run your applications.
 			},
 			"disk_size": schema.Int64Attribute{
 				MarkdownDescription: "The size of the primary disk in GB.",
-				Required:            true,
+				Optional:            true,
+				Computed:            true,
+				PlanModifiers: []planmodifier.Int64{
+					int64planmodifier.UseStateForUnknown(),
+				},
 			},
 			"display_name": schema.StringAttribute{
 				MarkdownDescription: "The name of the device.",
@@ -137,11 +141,12 @@ Devices are the virtual machines that run your applications.
 						},
 					},
 				},
-				Required: true,
+				Optional: true,
+				Computed: true,
 			},
 			"password": schema.StringAttribute{
 				MarkdownDescription: "The password for the device root or administrator user.",
-				Required:            true,
+				Optional:            true,
 				Sensitive:           true,
 			},
 			"send_email": schema.BoolAttribute{
@@ -167,11 +172,15 @@ Devices are the virtual machines that run your applications.
 			},
 			"swap_disk_size": schema.Int64Attribute{
 				MarkdownDescription: "The size of the swap disk in GB.",
-				Required:            true,
+				Optional:            true,
+				Computed:            true,
+				PlanModifiers: []planmodifier.Int64{
+					int64planmodifier.UseStateForUnknown(),
+				},
 			},
 			"template_id": schema.StringAttribute{
-				MarkdownDescription: "The template ID used to create the device.",
-				Required:            true,
+				MarkdownDescription: "The template ID used to create the device. Required for creation, but not returned by the API after creation.",
+				Optional:            true,
 				PlanModifiers: []planmodifier.String{
 					stringplanmodifier.RequiresReplace(),
 				},
@@ -211,19 +220,28 @@ func (r *deviceResource) Create(ctx context.Context, request resource.CreateRequ
 		return
 	}
 
-	var networks []xelon.DeviceCreateNetwork
-	for _, network := range data.Networks {
-		n := xelon.DeviceCreateNetwork{
-			ConnectOnPowerOn: network.Connected.ValueBool(),
-			NetworkID:        network.ID.ValueString(),
+	networks := []xelon.DeviceCreateNetwork{}
+	if !data.Networks.IsNull() && !data.Networks.IsUnknown() {
+		var networkElements []deviceNetworkResourceModel
+		diags := data.Networks.ElementsAs(ctx, &networkElements, false)
+		if diags.HasError() {
+			response.Diagnostics.Append(diags...)
+			return
 		}
-		if network.IPAddress.ValueString() != "" {
-			n.IPAddress = network.IPAddress.ValueString()
+
+		for _, network := range networkElements {
+			n := xelon.DeviceCreateNetwork{
+				ConnectOnPowerOn: network.Connected.ValueBool(),
+				NetworkID:        network.ID.ValueString(),
+			}
+			if network.IPAddress.ValueString() != "" {
+				n.IPAddress = network.IPAddress.ValueString()
+			}
+			if network.IPAddressID.ValueString() != "" {
+				n.IPAddress = network.IPAddressID.ValueString()
+			}
+			networks = append(networks, n)
 		}
-		if network.IPAddressID.ValueString() != "" {
-			n.IPAddress = network.IPAddressID.ValueString()
-		}
-		networks = append(networks, n)
 	}
 	createRequest := &xelon.DeviceCreateRequest{
 		CPUCores:             int(data.CPUCoreCount.ValueInt64()),
@@ -279,6 +297,12 @@ func (r *deviceResource) Create(ctx context.Context, request resource.CreateRequ
 	data.Hostname = types.StringValue(device.HostName)
 	data.ID = types.StringValue(device.ID)
 	data.Memory = types.Int64Value(int64(device.RAM))
+	if device.Template != nil {
+		data.TemplateID = types.StringValue(device.Template.ID)
+	}
+	if device.Tenant != nil {
+		data.TenantID = types.StringValue(device.Tenant.ID)
+	}
 
 	diags = response.State.Set(ctx, &data)
 	response.Diagnostics.Append(diags...)
@@ -315,117 +339,18 @@ func (r *deviceResource) Read(ctx context.Context, request resource.ReadRequest,
 	data.Hostname = types.StringValue(device.HostName)
 	data.ID = types.StringValue(device.ID)
 	data.Memory = types.Int64Value(int64(device.RAM))
+	if device.Template != nil {
+		data.TemplateID = types.StringValue(device.Template.ID)
+	}
+	if device.Tenant != nil {
+		data.TenantID = types.StringValue(device.Tenant.ID)
+	}
 
 	diags = response.State.Set(ctx, &data)
 	response.Diagnostics.Append(diags...)
 }
 
-func (r *deviceResource) Update(ctx context.Context, request resource.UpdateRequest, response *resource.UpdateResponse) {
-	// var plan, state deviceResourceModel
-	//
-	// // read plan and state data into the model
-	// response.Diagnostics.Append(request.Plan.Get(ctx, &plan)...)
-	// response.Diagnostics.Append(request.State.Get(ctx, &state)...)
-	// if response.Diagnostics.HasError() {
-	// 	return
-	// }
-	//
-	// deviceID := state.ID.ValueString()
-	//
-	// if !plan.DisplayName.Equal(state.DisplayName) {
-	// 	updateRequest := &xelon.DeviceUpdateRequest{
-	// 		DisplayName: plan.DisplayName.ValueString(),
-	// 	}
-	// 	tflog.Debug(ctx, "Updating device name", map[string]any{"device_id": deviceID, "payload": updateRequest})
-	// 	updatedDevice, _, err := r.client.Devices.Update(ctx, deviceID, updateRequest)
-	// 	if err != nil {
-	// 		response.Diagnostics.AddError("Unable to update device name", err.Error())
-	// 		return
-	// 	}
-	// 	tflog.Debug(ctx, "Updated device name", map[string]any{"data": updatedDevice})
-	//
-	// 	plan.DisplayName = types.StringValue(updatedDevice.DisplayName)
-	// }
-	//
-	// if !plan.CPUCoreCount.Equal(state.CPUCoreCount) || !plan.Memory.Equal(state.Memory) {
-	// 	// device must be stopped before changing CPU count and RAM
-	// 	tflog.Debug(ctx, "Getting device", map[string]any{"device_id": deviceID})
-	// 	device, _, err := r.client.Devices.Get(ctx, deviceID)
-	// 	if err != nil {
-	// 		response.Diagnostics.AddError("Unable to get device", err.Error())
-	// 		return
-	// 	}
-	// 	tflog.Debug(ctx, "Got device", map[string]any{"data": device})
-	// 	if device.PoweredOn {
-	// 		tflog.Info(ctx, "Stopping device", map[string]any{"device_id": deviceID})
-	// 		_, err := r.client.Devices.Stop(ctx, deviceID)
-	// 		if err != nil {
-	// 			response.Diagnostics.AddError("Unable to stop device", err.Error())
-	// 			return
-	// 		}
-	//
-	// 		err = helper.WaitDevicePowerStateOff(ctx, r.client, deviceID)
-	// 		if err != nil {
-	// 			response.Diagnostics.AddError("Unable to wait for device to be powered off", err.Error())
-	// 			return
-	// 		}
-	// 	}
-	//
-	// 	updateRequest := &xelon.DeviceUpdateHardwareRequest{
-	// 		CPUCores: int(plan.CPUCoreCount.ValueInt64()),
-	// 		RAM:      int(plan.Memory.ValueInt64()),
-	// 	}
-	// 	tflog.Debug(ctx, "Updating device hardware", map[string]any{"device_id": deviceID, "payload": updateRequest})
-	// 	updatedDevice, _, err := r.client.Devices.UpdateHardware(ctx, deviceID, updateRequest)
-	// 	if err != nil {
-	// 		response.Diagnostics.AddError("Unable to update device hardware", err.Error())
-	// 		return
-	// 	}
-	// 	tflog.Debug(ctx, "Updated device hardware", map[string]any{"data": updatedDevice})
-	//
-	// 	tflog.Debug(ctx, "Getting device with enriched data", map[string]any{"device_id": deviceID})
-	// 	device, _, err = r.client.Devices.Get(ctx, deviceID)
-	// 	if err != nil {
-	// 		response.Diagnostics.AddError("Unable to get device", err.Error())
-	// 		return
-	// 	}
-	// 	tflog.Debug(ctx, "Got device with enriched data", map[string]any{"data": device})
-	// 	if !device.PoweredOn {
-	// 		tflog.Info(ctx, "Starting device", map[string]any{"device_id": deviceID})
-	// 		_, err := r.client.Devices.Start(ctx, deviceID)
-	// 		if err != nil {
-	// 			response.Diagnostics.AddError("Unable to start device", err.Error())
-	// 			return
-	// 		}
-	//
-	// 		err = helper.WaitDevicePowerStateOn(ctx, r.client, deviceID)
-	// 		if err != nil {
-	// 			response.Diagnostics.AddError("Unable to wait for device to be powered on", err.Error())
-	// 			return
-	// 		}
-	// 	}
-	//
-	// 	err = helper.WaitDeviceHostnameConfigured(ctx, r.client, deviceID)
-	// 	if err != nil {
-	// 		response.Diagnostics.AddError("Unable to wait for device to have hostname configured", err.Error())
-	// 		return
-	// 	}
-	//
-	// 	tflog.Debug(ctx, "Getting device with enriched data", map[string]any{"device_id": deviceID})
-	// 	device, _, err = r.client.Devices.Get(ctx, deviceID)
-	// 	if err != nil {
-	// 		response.Diagnostics.AddError("Unable to get device", err.Error())
-	// 		return
-	// 	}
-	// 	tflog.Debug(ctx, "Got device with enriched data", map[string]any{"data": device})
-	//
-	// 	plan.CPUCoreCount = types.Int64Value(int64(device.CPUCores))
-	// 	plan.Memory = types.Int64Value(int64(device.RAM))
-	// }
-	//
-	// diags := response.State.Set(ctx, &plan)
-	// response.Diagnostics.Append(diags...)
-}
+// Update method is implemented in resource_xelon_device_update.go
 
 func (r *deviceResource) Delete(ctx context.Context, request resource.DeleteRequest, response *resource.DeleteResponse) {
 	var data deviceResourceModel
