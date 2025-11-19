@@ -26,7 +26,7 @@ type sshKeyResource struct {
 	client *xelon.Client
 }
 
-// sshKeyResourceModel maps the tag resource schema data.
+// sshKeyResourceModel maps the SSH key resource schema data.
 type sshKeyResourceModel struct {
 	ID        types.String `tfsdk:"id"`
 	Name      types.String `tfsdk:"name"`

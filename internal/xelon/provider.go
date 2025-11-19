@@ -35,14 +35,14 @@ func New(version string) func() *schema.Provider {
 		},
 
 		DataSourcesMap: map[string]*schema.Resource{
-			"xelon_cloud":  dataSourceXelonCloud(),
-			"xelon_tenant": dataSourceXelonTenant(),
+			// "xelon_cloud":  dataSourceXelonCloud(),
+			// "xelon_tenant": dataSourceXelonTenant(),
 		},
 
 		ResourcesMap: map[string]*schema.Resource{
-			"xelon_device":             resourceXelonDevice(),
-			"xelon_network":            resourceXelonNetwork(),
-			"xelon_persistent_storage": resourceXelonPersistentStorage(),
+			// "xelon_device":             resourceXelonDevice(),
+			// "xelon_persistent_storage": resourceXelonPersistentStorage(),
+			// "xelon_network":            resourceXelonNetwork(),
 			// "xelon_ssh_key":            resourceXelonSSHKey(),
 		},
 	}

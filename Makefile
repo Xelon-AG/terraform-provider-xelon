@@ -55,7 +55,6 @@ sweep:
 	@echo "    WARNING: This will destroy infrastructure. Use only in development accounts."
 	@echo ""
 	@go test -count=1 -v ./internal/provider -sweep=vdcnew
-	@go test -count=1 -v ./internal/xelon -sweep=vdcnew
 
 ## build: Build provider for default local system's operating system and architecture.
 .PHONY: build
