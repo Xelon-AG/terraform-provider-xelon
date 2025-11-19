@@ -4,6 +4,10 @@ github.com/Microsoft/go-winio v0.6.1 h1:9/kr64B9VUZrLm5YYwbGtUJnMgqWVOdUAXu6Migc
 github.com/Microsoft/go-winio v0.6.1/go.mod h1:LRdKpFKfdobln8UmuiYcKPot9D2v6svN5+sAH+4kjUM=
 github.com/ProtonMail/go-crypto v1.1.3 h1:nRBOetoydLeUb4nHajyO2bKqMLfWQ/ZPwkXqXxPxCFk=
 github.com/ProtonMail/go-crypto v1.1.3/go.mod h1:rA3QumHc/FZ8pAHreoekgiAbzpNsfQAosU5td4SnOrE=
+github.com/Xelon-AG/xelon-sdk-go v0.15.2-0.20250423145624-020d38164dcd h1:YMTe/wAPCEwCOrVT/0F9Iq4PUQFlOKUbGZLf18MCgP8=
+github.com/Xelon-AG/xelon-sdk-go v0.15.2-0.20250423145624-020d38164dcd/go.mod h1:Z8t2YsyXFopxTf6OTUWxIzYrdoPxb8XtzX6Ll50z4Kw=
+github.com/Xelon-AG/xelon-sdk-go v0.15.2-0.20251119200903-cf1b817831ae h1:kxKebBR4HKCryHftYGsPgwwJaKvdJn9rVgcTmxzYWuU=
+github.com/Xelon-AG/xelon-sdk-go v0.15.2-0.20251119200903-cf1b817831ae/go.mod h1:Z8t2YsyXFopxTf6OTUWxIzYrdoPxb8XtzX6Ll50z4Kw=
 github.com/agext/levenshtein v1.2.2 h1:0S/Yg6LYmFJ5stwQeRp6EeOcCbj7xiqQSdNelsXvaqE=
 github.com/agext/levenshtein v1.2.2/go.mod h1:JEDfjyjHDjOF/1e4FlBE/PkbqA9OfWu2ki2W0IB5558=
 github.com/apparentlymart/go-textseg/v12 v12.0.0/go.mod h1:S/4uRK2UtaQttw1GenVJEynmyUenKwP++x/+DdGV/Ec=

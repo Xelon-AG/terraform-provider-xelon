@@ -5,7 +5,7 @@ go 1.23
 toolchain go1.23.3
 
 require (
-	github.com/Xelon-AG/xelon-sdk-go v0.15.2-0.20250423145624-020d38164dcd
+	github.com/Xelon-AG/xelon-sdk-go v0.15.2-0.20251119200903-cf1b817831ae
 	github.com/hashicorp/terraform-plugin-framework v1.13.0
 	github.com/hashicorp/terraform-plugin-framework-validators v0.16.0
 	github.com/hashicorp/terraform-plugin-go v0.26.0
@@ -70,5 +70,3 @@ require (
 	google.golang.org/protobuf v1.36.3 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 )
-
-replace github.com/Xelon-AG/xelon-sdk-go => ../xelon-sdk-go
