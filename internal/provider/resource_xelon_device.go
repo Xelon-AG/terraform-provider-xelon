@@ -339,6 +339,17 @@ func (r *deviceResource) Read(ctx context.Context, request resource.ReadRequest,
 	data.Hostname = types.StringValue(device.HostName)
 	data.ID = types.StringValue(device.ID)
 	data.Memory = types.Int64Value(int64(device.RAM))
+
+	// Map storage devices to disk_size and swap_disk_size
+	// Typically: first storage (unitNumber 0) is main disk, second (unitNumber 1) is swap
+	for _, storage := range device.Storages {
+		if storage.UnitNumber == 0 {
+			data.DiskSize = types.Int64Value(int64(storage.Size))
+		} else if storage.UnitNumber == 1 {
+			data.SwapDiskSize = types.Int64Value(int64(storage.Size))
+		}
+	}
+
 	if device.Template != nil {
 		data.TemplateID = types.StringValue(device.Template.ID)
 	}
