@@ -19,7 +19,7 @@ endif
 tools:
 	@echo "==> Installing required tooling..."
 	@cd ${TOOLS_DIR} && GOBIN=${TOOLS_BIN_DIR} go install github.com/git-chglog/git-chglog/cmd/git-chglog
-	@cd ${TOOLS_DIR} && GOBIN=${TOOLS_BIN_DIR} go install github.com/golangci/golangci-lint/cmd/golangci-lint
+	@cd ${TOOLS_DIR} && GOBIN=${TOOLS_BIN_DIR} go install github.com/golangci/golangci-lint/v2/cmd/golangci-lint
 	@cd ${TOOLS_DIR} && GOBIN=${TOOLS_BIN_DIR} go install github.com/hashicorp/terraform-plugin-docs/cmd/tfplugindocs
 
 ## clean: Delete the build directory.
