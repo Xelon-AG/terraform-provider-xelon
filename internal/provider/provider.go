@@ -128,12 +128,20 @@ func (p *xelonProvider) Configure(ctx context.Context, request provider.Configur
 
 func (p *xelonProvider) DataSources(_ context.Context) []func() datasource.DataSource {
 	return []func() datasource.DataSource{
+		NewCloudDataSource,
 		NewNetworkDataSource,
+		NewTenantDataSource,
 	}
 }
 
 func (p *xelonProvider) Resources(_ context.Context) []func() resource.Resource {
 	return []func() resource.Resource{
+		NewDeviceResource,
+		NewFirewallResource,
+		NewFirewallForwardingRuleResource,
+		NewLoadBalancerResource,
+		NewLoadBalancerForwardingRuleResource,
+		NewNetworkResource,
 		NewSSHKeyResource,
 	}
 }

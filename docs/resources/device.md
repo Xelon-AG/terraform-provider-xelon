@@ -4,17 +4,19 @@ page_title: "xelon_device Resource - terraform-provider-xelon"
 subcategory: ""
 description: |-
   The device resource allows you to manage Xelon devices.
+  Devices are the virtual machines that run your applications.
 ---
 
 # xelon_device (Resource)
 
 The device resource allows you to manage Xelon devices.
 
+Devices are the virtual machines that run your applications.
+
 ## Example Usage
 
 ```terraform
 resource "xelon_device" "server" {
-  cloud_id       = data.xelon_cloud.hcp.cloud_id
   cpu_core_count = 2
   disk_size      = 10
   display_name   = "server"
@@ -22,21 +24,15 @@ resource "xelon_device" "server" {
   memory         = 2
   password       = "<generated-secure-password>"
   swap_disk_size = 1
-  template_id    = 10000
+  template_id    = "<template-id>"
+  tenant_id      = "<tenant-id>"
 
-  // find correct network values from template creation info
-  network {
-    id                 = 100
-    ipv4_address_id    = 100
-    nic_controller_key = 100
-    nic_key            = 100
-    nic_number         = 100
-    nic_unit           = 100
-  }
-}
-
-data "xelon_cloud" "hcp" {
-  name = "Main HCP Cloud"
+  networks = [
+    {
+      connected = true
+      id        = "<network-id>"
+    }
+  ]
 }
 ```
 
@@ -45,29 +41,38 @@ data "xelon_cloud" "hcp" {
 
 ### Required
 
-- `cloud_id` (Number) The cloud ID from your organization.
-- `cpu_core_count` (Number) The number of CPU cores for a device
-- `disk_size` (Number) Size of a disk in gigabytes.
-- `display_name` (String) Display name of a device.
-- `hostname` (String) Hostname of a device.
-- `memory` (Number) Amount of RAM in gigabytes.
-- `network` (Block List, Min: 1, Max: 1) Device network interface configuration. (see [below for nested schema](#nestedblock--network))
-- `password` (String, Sensitive) Password of a device.
-- `swap_disk_size` (Number) Size of a SWAP disk in gigabytes.
-- `template_id` (Number) Template ID of the selected OS.
+- `cpu_core_count` (Number) The number of CPU cores to allocate to the device.
+- `disk_size` (Number) The size of the primary disk in GB.
+- `display_name` (String) The name of the device.
+- `hostname` (String) The hostname of the device.
+- `memory` (Number) The amount of RAM in GB to allocate to the device.
+- `networks` (Attributes Set) The networks configured for the device. (see [below for nested schema](#nestedatt--networks))
+- `password` (String, Sensitive) The password for the device root or administrator user.
+- `swap_disk_size` (Number) The size of the swap disk in GB.
+- `template_id` (String) The template ID used to create the device.
+- `tenant_id` (String) The tenant ID to whom the device belongs.
+
+### Optional
+
+- `backup_job_id` (Number) The ID for the backup job.
+- `enable_monitoring` (Boolean) Whether to enable monitoring for the device.
+- `script_id` (String) The ID of the script to be executed during the device setup.
+- `send_email` (Boolean) Whether to send an email notification upon successful device creation.
+- `ssh_key_id` (String) The ID of the SSH key to be used for authentication.
 
 ### Read-Only
 
-- `id` (String) The ID of this resource.
+- `id` (String) The ID of the device.
 
-<a id="nestedblock--network"></a>
-### Nested Schema for `network`
+<a id="nestedatt--networks"></a>
+### Nested Schema for `networks`
 
 Required:
 
-- `id` (Number) Network ID available for your organization.
-- `ipv4_address_id` (Number) IPv4 address ID for a device.
-- `nic_controller_key` (Number) Network interface card (NIC) controller key.
-- `nic_key` (Number) Network interface card (NIC) key.
-- `nic_number` (Number) Network interface card (NIC) number.
-- `nic_unit` (Number) Network interface card (NIC) unit.
+- `connected` (Boolean) Whether the network should automatically connect when the device powers on.
+- `id` (String) The network ID to which the device will connect.
+
+Optional:
+
+- `ipv4_address` (String) The static IP address for the network connection.
+- `ipv4_address_id` (String) The ID of the static IP address for the network connection.

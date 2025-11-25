@@ -3,7 +3,7 @@
 page_title: "xelon_network Resource - terraform-provider-xelon"
 subcategory: ""
 description: |-
-  The network resource allows you to manage Xelon networks.
+    The network resource allows you to manage Xelon networks.
 ---
 
 # xelon_network (Resource)
@@ -12,14 +12,18 @@ The network resource allows you to manage Xelon networks.
 
 ## Example Usage
 
+### LAN network
+
 ```terraform
 resource "xelon_network" "backend_lan" {
-  cloud_id      = data.xelon_cloud.hcp.cloud_id
+  cloud_id      = data.xelon_cloud.hcp.id
   dns_primary   = "8.8.8.8"
   dns_secondary = "8.8.4.4"
   gateway       = "10.0.0.1"
   name          = "LAN: backend"
   network       = "10.0.0.0"
+  network_speed = 1000
+  subnet_size   = 24
   type          = "LAN"
 }
 
@@ -33,15 +37,20 @@ data "xelon_cloud" "hcp" {
 
 ### Required
 
-- `cloud_id` (Number) The cloud ID from your organization.
-- `dns_primary` (String) The primary DNS server address.
+- `cloud_id` (String) The ID of the cloud.
+- `name` (String) The network name.
+- `network_speed` (Number) The speed of the network in MBit. Must be one of `1000` or `10000`.
+- `subnet_size` (Number) The subnet size of the network.
+- `type` (String) The network type. Must be one of `LAN` or `WAN`.
+
+### Optional
+
+- `dns_primary` (String) The primary DNS server address. Must be specified if network type is `LAN`.
 - `dns_secondary` (String) The secondary DNS server address.
-- `gateway` (String) The default gateway IP address.
-- `name` (String) The name of the network.
-- `network` (String) A /24 network.
-- `type` (String) The network type. Must be one of `WAN` or `LAN`.
+- `gateway` (String) The default gateway address. Must be specified if network type is `LAN`.
+- `network` (String) The network definition. Must be specified if network type is `LAN`.
+- `tenant_id` (String) The tenant ID to whom the network belongs.
 
 ### Read-Only
 
-- `id` (String) The ID of this resource.
-- `netmask` (String) The netmask of the network.
+- `id` (String) The ID of the network.

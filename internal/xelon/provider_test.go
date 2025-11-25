@@ -1,7 +1,6 @@
 package xelon
 
 import (
-	"os"
 	"regexp"
 	"testing"
 
@@ -10,7 +9,7 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-const accTestPrefix = "tf-acc-test"
+// const accTestPrefix = "tf-acc-test"
 
 var testAccProvider = New("testacc")()
 var testAccProviderFactories = map[string]func() (*schema.Provider, error){
@@ -26,6 +25,7 @@ func TestProvider(t *testing.T) {
 }
 
 func TestProvider_MissingTokenAttribute(t *testing.T) {
+	t.Skip("refactoring to framework")
 	resource.UnitTest(t, resource.TestCase{
 		ProviderFactories: testAccProviderFactories,
 
@@ -45,16 +45,16 @@ data "xelon_cloud" "hcp" {
 	})
 }
 
-func testAccPreCheck(t *testing.T) {
-	if v := os.Getenv("XELON_BASE_URL"); v == "" {
-		t.Fatal("XELON_BASE_URL must be set for acceptance tests")
-	}
-
-	if v := os.Getenv("XELON_CLIENT_ID"); v == "" {
-		t.Fatal("XELON_CLIENT_ID must be set for acceptance tests")
-	}
-
-	if v := os.Getenv("XELON_TOKEN"); v == "" {
-		t.Fatal("XELON_TOKEN must be set for acceptance tests")
-	}
-}
+// func testAccPreCheck(t *testing.T) {
+// 	if v := os.Getenv("XELON_BASE_URL"); v == "" {
+// 		t.Fatal("XELON_BASE_URL must be set for acceptance tests")
+// 	}
+//
+// 	if v := os.Getenv("XELON_CLIENT_ID"); v == "" {
+// 		t.Fatal("XELON_CLIENT_ID must be set for acceptance tests")
+// 	}
+//
+// 	if v := os.Getenv("XELON_TOKEN"); v == "" {
+// 		t.Fatal("XELON_TOKEN must be set for acceptance tests")
+// 	}
+// }
