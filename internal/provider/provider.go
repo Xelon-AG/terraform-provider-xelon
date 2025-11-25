@@ -130,6 +130,7 @@ func (p *xelonProvider) DataSources(_ context.Context) []func() datasource.DataS
 	return []func() datasource.DataSource{
 		NewCloudDataSource,
 		NewNetworkDataSource,
+		NewSSHKeyDataSource,
 		NewTenantDataSource,
 	}
 }
