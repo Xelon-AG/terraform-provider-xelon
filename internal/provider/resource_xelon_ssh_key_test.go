@@ -58,7 +58,7 @@ func TestAccResourceXelonSSHKey_basic(t *testing.T) {
 
 	resource.Test(t, resource.TestCase{
 		PreCheck:                 func() { testAccPreCheck(t) },
-		ProtoV6ProviderFactories: testAccProviderFactories,
+		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
 		CheckDestroy:             testAccCheckSSHKeyDestroy,
 
 		Steps: []resource.TestStep{
@@ -86,7 +86,7 @@ func TestAccResourceXelonSSHKey_update(t *testing.T) {
 
 	resource.Test(t, resource.TestCase{
 		PreCheck:                 func() { testAccPreCheck(t) },
-		ProtoV6ProviderFactories: testAccProviderFactories,
+		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
 		CheckDestroy:             testAccCheckSSHKeyDestroy,
 
 		Steps: []resource.TestStep{
@@ -121,7 +121,7 @@ func TestAccResourceXelonSSHKey_expectError(t *testing.T) {
 
 	resource.Test(t, resource.TestCase{
 		PreCheck:                 func() { testAccPreCheck(t) },
-		ProtoV6ProviderFactories: testAccProviderFactories,
+		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
 		CheckDestroy:             testAccCheckSSHKeyDestroy,
 
 		Steps: []resource.TestStep{
