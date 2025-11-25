@@ -6,8 +6,8 @@ linters:
     - copyloopvar
     - durationcheck
     - errcheck
+    #- forcetypeassert
     - godot
-    - govet
     - ineffassign
     - makezero
     - misspell
@@ -15,7 +15,9 @@ linters:
     - predeclared
     - staticcheck
     - unconvert
+    - unparam
     - unused
+    - usetesting
 
 formatters:
   enable:
