@@ -58,4 +58,6 @@ data "xelon_tenant" "team" {
 
 ### Read-Only
 
+- `parent_tenant_id` (String) The ID of the parent tenant.
 - `status` (String) The status of the tenant.
+- `type` (String) The type of the tenant (`Reseller` or `End Customer`).
