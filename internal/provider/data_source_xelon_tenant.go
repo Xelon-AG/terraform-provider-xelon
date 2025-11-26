@@ -25,9 +25,11 @@ type tenantDataSource struct {
 
 // tenantDataSourceModel maps the tenant datasource schema data.
 type tenantDataSourceModel struct {
-	ID     types.String `tfsdk:"id"`
-	Name   types.String `tfsdk:"name"`
-	Status types.String `tfsdk:"status"`
+	ID             types.String `tfsdk:"id"`
+	Name           types.String `tfsdk:"name"`
+	ParentTenantID types.String `tfsdk:"parent_tenant_id"`
+	Status         types.String `tfsdk:"status"`
+	Type           types.String `tfsdk:"type"`
 }
 
 func NewTenantDataSource() datasource.DataSource {
@@ -57,8 +59,16 @@ to group resources and manage access.
 				Computed:            true,
 				Optional:            true,
 			},
+			"parent_tenant_id": schema.StringAttribute{
+				MarkdownDescription: "The ID of the parent tenant.",
+				Computed:            true,
+			},
 			"status": schema.StringAttribute{
 				MarkdownDescription: "The status of the tenant.",
+				Computed:            true,
+			},
+			"type": schema.StringAttribute{
+				MarkdownDescription: "The type of the tenant (`Reseller` or `End Customer`).",
 				Computed:            true,
 			},
 		},
@@ -109,7 +119,9 @@ func (d *tenantDataSource) Read(ctx context.Context, request datasource.ReadRequ
 		// map response body to attributes
 		data.ID = types.StringValue(tenant.ID)
 		data.Name = types.StringValue(tenant.Name)
+		data.ParentTenantID = types.StringValue(tenant.Parent)
 		data.Status = types.StringValue(tenant.Status)
+		data.Type = types.StringValue(tenant.Type)
 	}
 
 	if tenantID != "" {
@@ -139,7 +151,9 @@ func (d *tenantDataSource) Read(ctx context.Context, request datasource.ReadRequ
 		// map response body to attributes
 		data.ID = types.StringValue(tenant.ID)
 		data.Name = types.StringValue(tenant.Name)
+		data.ParentTenantID = types.StringValue(tenant.Parent)
 		data.Status = types.StringValue(tenant.Status)
+		data.Type = types.StringValue(tenant.Type)
 	} else if tenantName != "" {
 		tflog.Info(ctx, "Searching for tenant by name", map[string]any{"tenant_name": tenantName})
 
@@ -167,7 +181,9 @@ func (d *tenantDataSource) Read(ctx context.Context, request datasource.ReadRequ
 		tenant := &tenants[0]
 		data.ID = types.StringValue(tenant.ID)
 		data.Name = types.StringValue(tenant.Name)
+		data.ParentTenantID = types.StringValue(tenant.Parent)
 		data.Status = types.StringValue(tenant.Status)
+		data.Type = types.StringValue(tenant.Type)
 	}
 
 	diags = response.State.Set(ctx, &data)
