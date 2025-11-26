@@ -26,6 +26,7 @@ type cloudDataSource struct {
 type cloudDataSourceModel struct {
 	ID   types.String `tfsdk:"id"`
 	Name types.String `tfsdk:"name"`
+	Type types.String `tfsdk:"type"`
 }
 
 func NewCloudDataSource() datasource.DataSource {
@@ -53,6 +54,10 @@ Xelon cloud is data center where your resources are hosted.
 				MarkdownDescription: "The cloud name.",
 				Computed:            true,
 				Optional:            true,
+			},
+			"type": schema.StringAttribute{
+				MarkdownDescription: "The type of the cloud.",
+				Computed:            true,
 			},
 		},
 	}
@@ -97,7 +102,7 @@ func (d *cloudDataSource) Read(ctx context.Context, request datasource.ReadReque
 	tflog.Debug(ctx, "Getting clouds")
 	clouds, _, err := d.client.Clouds.List(ctx, nil)
 	if err != nil {
-		response.Diagnostics.AddError("Unable to list clouds", err.Error())
+		response.Diagnostics.AddError("Unable to get clouds", err.Error())
 		return
 	}
 	tflog.Debug(ctx, "Got clouds", map[string]any{"data": clouds})
@@ -138,6 +143,7 @@ func (d *cloudDataSource) Read(ctx context.Context, request datasource.ReadReque
 	// map response body to attributes
 	data.ID = types.StringValue(cloud.ID)
 	data.Name = types.StringValue(cloud.Name)
+	data.Type = types.StringValue(cloud.Type)
 
 	diags = response.State.Set(ctx, &data)
 	response.Diagnostics.Append(diags...)

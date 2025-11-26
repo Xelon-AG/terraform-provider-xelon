@@ -47,3 +47,7 @@ data "xelon_cloud" "hcp" {
 
 - `id` (String) The ID of the cloud.
 - `name` (String) The cloud name.
+
+### Read-Only
+
+- `type` (String) The type of the cloud.
