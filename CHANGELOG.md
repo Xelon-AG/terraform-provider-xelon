@@ -1,4 +1,23 @@
 
+<a name="v1.0.0-rc14"></a>
+## v1.0.0-rc14 (2025-11-26)
+### Documentation
+* **datasource/xelon_ssh_key**: add examples for ssh key filtering
+### Features
+* remove terraform SDKv2 and mux provider
+* **datasource/xelon_ssh_key**: use v2 endpoints for ssh keys
+### Maintaining
+* align file names for all datasources
+* **ci**: bump terraform matrix for acceptance tests
+* **deps**: update hashicorp dependencies to latest versions
+* **tools**: sync golangci config with scaffolding repo
+* **tools**: migrate golangci-lint to v2
+
+<a name="v1.0.0-rc13"></a>
+## v1.0.0-rc13 (2025-05-15)
+### Bug Fixes
+* **resource/xelon_network**: make optional attributes computed
+
 <a name="v1.0.0-rc12"></a>
 ## v1.0.0-rc12 (2025-04-23)
 ### Bug Fixes
