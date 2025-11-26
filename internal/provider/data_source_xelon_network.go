@@ -27,16 +27,21 @@ type networkDataSource struct {
 
 // networkDataSourceModel maps the network datasource schema data.
 type networkDataSourceModel struct {
-	Clouds       []cloudDataSourceModel `tfsdk:"clouds"`
-	DNSPrimary   types.String           `tfsdk:"dns_primary"`
-	DNSSecondary types.String           `tfsdk:"dns_secondary"`
-	Gateway      types.String           `tfsdk:"gateway"`
-	ID           types.String           `tfsdk:"id"`
-	Name         types.String           `tfsdk:"name"`
-	Network      types.String           `tfsdk:"network"`
-	SubnetSize   types.Int64            `tfsdk:"subnet_size"`
-	TenantID     types.String           `tfsdk:"tenant_id"`
-	Type         types.String           `tfsdk:"type"`
+	Clouds       []networkCloudDataSourceModel `tfsdk:"clouds"`
+	DNSPrimary   types.String                  `tfsdk:"dns_primary"`
+	DNSSecondary types.String                  `tfsdk:"dns_secondary"`
+	Gateway      types.String                  `tfsdk:"gateway"`
+	ID           types.String                  `tfsdk:"id"`
+	Name         types.String                  `tfsdk:"name"`
+	Network      types.String                  `tfsdk:"network"`
+	SubnetSize   types.Int64                   `tfsdk:"subnet_size"`
+	TenantID     types.String                  `tfsdk:"tenant_id"`
+	Type         types.String                  `tfsdk:"type"`
+}
+
+type networkCloudDataSourceModel struct {
+	ID   types.String `tfsdk:"id"`
+	Name types.String `tfsdk:"name"`
 }
 
 func NewNetworkDataSource() datasource.DataSource {
@@ -173,9 +178,9 @@ func (d *networkDataSource) Read(ctx context.Context, request datasource.ReadReq
 		}
 
 		// map response body to attributes
-		var clouds []cloudDataSourceModel
+		var clouds []networkCloudDataSourceModel
 		for _, cloud := range network.Clouds {
-			clouds = append(clouds, cloudDataSourceModel{
+			clouds = append(clouds, networkCloudDataSourceModel{
 				ID:   types.StringValue(cloud.ID),
 				Name: types.StringValue(cloud.Name),
 			})
@@ -226,9 +231,9 @@ func (d *networkDataSource) Read(ctx context.Context, request datasource.ReadReq
 		tflog.Debug(ctx, "Got network", map[string]any{"data": network})
 
 		// map response body to attributes
-		var clouds []cloudDataSourceModel
+		var clouds []networkCloudDataSourceModel
 		for _, cloud := range network.Clouds {
-			clouds = append(clouds, cloudDataSourceModel{
+			clouds = append(clouds, networkCloudDataSourceModel{
 				ID:   types.StringValue(cloud.ID),
 				Name: types.StringValue(cloud.Name),
 			})
