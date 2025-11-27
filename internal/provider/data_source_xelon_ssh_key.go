@@ -132,7 +132,7 @@ func (d *sshKeyDataSource) Read(ctx context.Context, request datasource.ReadRequ
 		tflog.Debug(ctx, "Getting SSH keys", map[string]any{"ssh_key_name": sshKeyName})
 		sshKeys, _, err := d.client.SSHKeys.List(ctx, &xelon.SSHKeyListOptions{Search: sshKeyName})
 		if err != nil {
-			response.Diagnostics.AddError("Unable to search networks by name", err.Error())
+			response.Diagnostics.AddError("Unable to search SSH keys by name", err.Error())
 			return
 		}
 		tflog.Debug(ctx, "Got SSH keys", map[string]any{"data": sshKeys})
