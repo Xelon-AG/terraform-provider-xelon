@@ -54,7 +54,9 @@ func (d *networkDataSource) Metadata(_ context.Context, _ datasource.MetadataReq
 
 func (d *networkDataSource) Schema(_ context.Context, _ datasource.SchemaRequest, response *datasource.SchemaResponse) {
 	response.Schema = schema.Schema{
-		MarkdownDescription: "The network data source provides information about an existing network.",
+		MarkdownDescription: `
+The network data source provides information about an existing network.
+`,
 		Attributes: map[string]schema.Attribute{
 			"clouds": schema.SetNestedAttribute{
 				MarkdownDescription: "The clouds of the network.",
