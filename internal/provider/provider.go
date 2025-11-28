@@ -129,6 +129,7 @@ func (p *xelonProvider) Configure(ctx context.Context, request provider.Configur
 func (p *xelonProvider) DataSources(_ context.Context) []func() datasource.DataSource {
 	return []func() datasource.DataSource{
 		NewCloudDataSource,
+		NewISODataSource,
 		NewLoadBalancerDataSource,
 		NewNetworkDataSource,
 		NewSSHKeyDataSource,
@@ -141,6 +142,7 @@ func (p *xelonProvider) Resources(_ context.Context) []func() resource.Resource 
 		NewDeviceResource,
 		NewFirewallResource,
 		NewFirewallForwardingRuleResource,
+		NewISOResource,
 		NewLoadBalancerResource,
 		NewLoadBalancerForwardingRuleResource,
 		NewNetworkResource,
