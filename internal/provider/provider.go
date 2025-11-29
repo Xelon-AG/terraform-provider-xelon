@@ -133,6 +133,7 @@ func (p *xelonProvider) DataSources(_ context.Context) []func() datasource.DataS
 		NewLoadBalancerDataSource,
 		NewNetworkDataSource,
 		NewSSHKeyDataSource,
+		NewTemplateDataSource,
 		NewTenantDataSource,
 	}
 }
@@ -147,6 +148,7 @@ func (p *xelonProvider) Resources(_ context.Context) []func() resource.Resource 
 		NewLoadBalancerForwardingRuleResource,
 		NewNetworkResource,
 		NewSSHKeyResource,
+		NewTemplateResource,
 	}
 }
 
