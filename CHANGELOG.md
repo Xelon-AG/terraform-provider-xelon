@@ -1,6 +1,31 @@
 
+<a name="v1.0.0"></a>
+## v1.0.0 (2025-11-29)
+### Bug Fixes
+* **datasource/xelon_network**: isolate model for cloud representation
+* **datasource/xelon_tenant**: add parent and type attributes
+* **deps**: upgrade xelon-sdk-go to v1.1.0
+### Documentation
+* update terraform version in readme
+* **datasource/xelon_iso**: update documentation for data source
+* **datasource/xelon_load_balancer**: update documentation
+* **datasource/xelon_template**: update documentation with examples
+* **datasource/xelon_tenant**: update documentation
+* **resource/xelon_iso**: update documentation for resource
+* **resource/xelon_template**: update documentation with examples
+### Features
+* **datasource/xelon_iso**: add new data source for custom ISOs
+* **datasource/xelon_load_balancer**: add new datasource using v2 endpoint
+* **datasource/xelon_template**: add new data source for custom templates
+* **resource/xelon_iso**: add new resource for custom ISOs
+* **resource/xelon_template**: add new resource for custom templates
+### Maintaining
+* **goreleaser**: exclude windows_arm_6 from builds
+
 <a name="v1.0.0-rc14"></a>
 ## v1.0.0-rc14 (2025-11-26)
+### Bug Fixes
+* **datasource/xelon_cloud**: add cloud type attribute
 ### Documentation
 * **datasource/xelon_ssh_key**: add examples for ssh key filtering
 ### Features
