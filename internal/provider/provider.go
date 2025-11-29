@@ -147,6 +147,7 @@ func (p *xelonProvider) Resources(_ context.Context) []func() resource.Resource 
 		NewLoadBalancerForwardingRuleResource,
 		NewNetworkResource,
 		NewSSHKeyResource,
+		NewTemplateResource,
 	}
 }
 

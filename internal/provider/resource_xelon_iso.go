@@ -209,6 +209,9 @@ func (r *isoResource) Read(ctx context.Context, request resource.ReadRequest, re
 	data.Description = types.StringValue(iso.Description)
 	data.ID = types.StringValue(iso.ID)
 	data.Name = types.StringValue(iso.Name)
+
+	diags = response.State.Set(ctx, &data)
+	response.Diagnostics.Append(diags...)
 }
 
 func (r *isoResource) Update(ctx context.Context, request resource.UpdateRequest, response *resource.UpdateResponse) {
