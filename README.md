@@ -11,7 +11,7 @@ of Xelon HQ cloud resources using Xelon REST API.
 
 ## Requirements
 
-- [Terraform](https://www.terraform.io/downloads.html) >= 0.12.x
+- [Terraform](https://www.terraform.io/downloads.html) >= 1.0
 
 ## Using the provider
 
