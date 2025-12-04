@@ -12,8 +12,8 @@ import (
 )
 
 const (
-	isoStateActive   = "active"
-	isoStateInactive = "inactive"
+	isoStateCreating = "creating"
+	isoStateReady    = "ready"
 )
 
 func statusISOState(ctx context.Context, client *xelon.Client, isoID string) retry.StateRefreshFunc {
@@ -23,7 +23,7 @@ func statusISOState(ctx context.Context, client *xelon.Client, isoID string) ret
 			// API returns 500 sometimes for fresh created ISOs
 			tflog.Info(ctx, "error by getting ISO", map[string]any{"response": resp})
 			if resp != nil && resp.StatusCode == http.StatusInternalServerError {
-				return iso, isoStateInactive, nil
+				return iso, isoStateCreating, nil
 			}
 			return nil, "", err
 		}
@@ -32,10 +32,10 @@ func statusISOState(ctx context.Context, client *xelon.Client, isoID string) ret
 		}
 
 		var isoState string
-		if iso.Active {
-			isoState = isoStateActive
+		if iso.Status {
+			isoState = isoStateReady
 		} else {
-			isoState = isoStateInactive
+			isoState = isoStateCreating
 		}
 
 		return iso, isoState, nil
