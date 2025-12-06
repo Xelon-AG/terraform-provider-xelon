@@ -46,8 +46,6 @@ func TestProvider_MissingTokenAttribute(t *testing.T) {
 }
 
 func TestProvider_userAgent(t *testing.T) {
-	t.Parallel()
-
 	type testCase struct {
 		version           string
 		expectedUserAgent string
