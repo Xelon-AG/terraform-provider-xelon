@@ -152,13 +152,13 @@ func (r *isoResource) Create(ctx context.Context, request resource.CreateRequest
 	tflog.Debug(ctx, "Created ISO", map[string]any{"data": iso})
 
 	isoID := iso.ID
-	tflog.Info(ctx, "Waiting for ISO to be active", map[string]any{"iso_id": isoID})
-	err = helper.WaitISOActive(ctx, r.client, isoID)
+	tflog.Info(ctx, "Waiting for ISO to be ready", map[string]any{"iso_id": isoID})
+	err = helper.WaitISOStateReady(ctx, r.client, isoID)
 	if err != nil {
-		response.Diagnostics.AddError("Unable to wait for ISO to be active", err.Error())
+		response.Diagnostics.AddError("Unable to wait for ISO to be ready", err.Error())
 		return
 	}
-	tflog.Info(ctx, "ISO is active", map[string]any{"iso_id": isoID})
+	tflog.Info(ctx, "ISO is ready", map[string]any{"iso_id": isoID})
 
 	tflog.Debug(ctx, "Getting ISO with enriched properties", map[string]any{"iso_id": isoID})
 	iso, _, err = r.client.ISOs.Get(ctx, isoID)

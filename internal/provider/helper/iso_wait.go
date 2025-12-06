@@ -10,10 +10,10 @@ import (
 	"github.com/Xelon-AG/xelon-sdk-go/xelon"
 )
 
-func WaitISOActive(ctx context.Context, client *xelon.Client, isoID string) error {
+func WaitISOStateReady(ctx context.Context, client *xelon.Client, isoID string) error {
 	stateConf := &retry.StateChangeConf{
-		Pending:    []string{isoStateInactive},
-		Target:     []string{isoStateActive},
+		Pending:    []string{isoStateCreating},
+		Target:     []string{isoStateReady},
 		Timeout:    10 * time.Minute,
 		MinTimeout: 5 * time.Second,
 		Delay:      3 * time.Second,
