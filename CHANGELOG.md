@@ -1,4 +1,14 @@
 
+<a name="v1.0.1"></a>
+## v1.0.1 (2025-12-08)
+### Bug Fixes
+* **resource/xelon_iso**: use status field for waiting check if ISO is ready
+### Maintaining
+* **datasource/xelon_iso**: add acceptance tests
+* **datasource/xelon_ssh_key**: add acceptance tests
+* **deps**: update xelon-sdk-go to v1.1.1
+* **resource/xelon_iso**: add acceptance tests
+
 <a name="v1.0.0"></a>
 ## v1.0.0 (2025-11-29)
 ### Bug Fixes
