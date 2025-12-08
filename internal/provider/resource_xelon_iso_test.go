@@ -53,7 +53,7 @@ func TestAccResourceXelonISO(t *testing.T) {
 	isoName := fmt.Sprintf("%s-%s", accTestPrefix, acctest.RandString(10))
 	isoDescription := fmt.Sprintf("%s-description", accTestPrefix)
 
-	resource.Test(t, resource.TestCase{
+	resource.ParallelTest(t, resource.TestCase{
 		PreCheck:                 func() { testAccPreCheck(t) },
 		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
 		Steps: []resource.TestStep{
