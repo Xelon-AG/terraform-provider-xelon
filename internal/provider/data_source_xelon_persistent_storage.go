@@ -44,7 +44,7 @@ func (d *persistentStorageDataSource) Metadata(_ context.Context, _ datasource.M
 func (d *persistentStorageDataSource) Schema(_ context.Context, _ datasource.SchemaRequest, response *datasource.SchemaResponse) {
 	response.Schema = schema.Schema{
 		MarkdownDescription: `
-The persistent storage data source provides information about an existing storages.
+The persistent storage data source provides information about an existing storage.
 `,
 		Attributes: map[string]schema.Attribute{
 			"cloud_id": schema.StringAttribute{
