@@ -12,8 +12,8 @@ import (
 
 func WaitDevicePowerStateOn(ctx context.Context, client *xelon.Client, deviceID string) error {
 	stateConf := &retry.StateChangeConf{
-		Pending:    []string{devicePowerStateOff},
-		Target:     []string{devicePowerStateOn},
+		Pending:    []string{deviceStatePowerOff},
+		Target:     []string{deviceStatePowerOn},
 		Timeout:    10 * time.Minute,
 		MinTimeout: 5 * time.Second,
 		Delay:      3 * time.Second,
@@ -28,8 +28,8 @@ func WaitDevicePowerStateOn(ctx context.Context, client *xelon.Client, deviceID 
 
 func WaitDevicePowerStateOff(ctx context.Context, client *xelon.Client, deviceID string) error {
 	stateConf := &retry.StateChangeConf{
-		Pending:    []string{devicePowerStateOn},
-		Target:     []string{devicePowerStateOff},
+		Pending:    []string{deviceStatePowerOn},
+		Target:     []string{deviceStatePowerOff},
 		Timeout:    10 * time.Minute,
 		MinTimeout: 5 * time.Second,
 		Delay:      3 * time.Second,
