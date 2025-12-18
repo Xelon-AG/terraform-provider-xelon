@@ -11,8 +11,8 @@ import (
 )
 
 const (
-	devicePowerStateOn  = "poweredOn"
-	devicePowerStateOff = "poweredOff"
+	deviceStatePowerOn  = "poweredOn"
+	deviceStatePowerOff = "poweredOff"
 
 	deviceStateProvisioning     = "provisioning"
 	deviceStateReadyForBasicUse = "readyForBasicUse"
@@ -25,7 +25,7 @@ func statusDevicePowerState(ctx context.Context, client *xelon.Client, deviceID 
 		if err != nil {
 			// API returns 500 sometimes for fresh created devices in-provisioning state
 			if resp != nil && resp.StatusCode == http.StatusInternalServerError {
-				return device, devicePowerStateOff, nil
+				return device, deviceStatePowerOff, nil
 			}
 			return nil, "", err
 		}
@@ -35,9 +35,9 @@ func statusDevicePowerState(ctx context.Context, client *xelon.Client, deviceID 
 
 		var devicePowerState string
 		if device.PoweredOn {
-			devicePowerState = devicePowerStateOn
+			devicePowerState = deviceStatePowerOn
 		} else {
-			devicePowerState = devicePowerStateOff
+			devicePowerState = deviceStatePowerOff
 		}
 
 		return device, devicePowerState, nil

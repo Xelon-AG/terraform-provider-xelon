@@ -1,9 +1,7 @@
-resource "xelon_persistent_storage" "backup" {
-  cloud_id = data.xelon_cloud.hcp.cloud_id
-  name     = "backup"
-  size     = 50
-}
-
-data "xelon_cloud" "hcp" {
-  name = "Main HCP Cloud"
+resource "xelon_persistent_storage" "database" {
+  cloud_id  = "<cloud-id>"
+  device_id = "<device-id>"
+  name      = "database-postgres-storage"
+  size      = 50
+  tenant_id = "<tenant-id>"
 }
