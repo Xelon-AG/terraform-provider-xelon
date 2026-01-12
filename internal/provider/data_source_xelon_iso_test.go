@@ -66,7 +66,7 @@ resource "xelon_iso" "test" {
   category_id = 2
   cloud_id    = data.xelon_cloud.test.id
   name = %[1]q
-  url  = "https://cdimage.debian.org/debian-cd/current/amd64/iso-cd/debian-13.2.0-amd64-netinst.iso"
+  url  = "https://cdimage.debian.org/debian-cd/current/amd64/iso-cd/debian-13.3.0-amd64-netinst.iso"
 }
 
 data "xelon_cloud" "test" {
