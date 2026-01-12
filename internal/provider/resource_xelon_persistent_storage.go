@@ -302,7 +302,13 @@ func (r *persistentStorageResource) Update(ctx context.Context, request resource
 		}
 		tflog.Debug(ctx, "Extended persistent storage size", map[string]any{"persistent_storage_id": persistentStorageID})
 
-		// TODO: API doesn't return new size, waiting for fix
+		tflog.Info(ctx, "Waiting for persistent storage to be formatted after extension", map[string]any{"persistent_storage_id": persistentStorageID})
+		err = helper.WaitPersistentStorageStateFormatted(ctx, r.client, persistentStorageID)
+		if err != nil {
+			response.Diagnostics.AddError("Unable to wait for persistent storage to be formatted", err.Error())
+			return
+		}
+		tflog.Info(ctx, "Persistent storage is formatted after extension", map[string]any{"persistent_storage_id": persistentStorageID})
 
 		tflog.Debug(ctx, "Getting persistent storage with enriched data", map[string]any{"persistent_storage_id": persistentStorageID})
 		persistentStorage, _, err := r.client.PersistentStorages.Get(ctx, persistentStorageID)
