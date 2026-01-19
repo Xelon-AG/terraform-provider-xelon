@@ -1,6 +1,25 @@
 
+<a name="v1.1.0"></a>
+## v1.1.0 (2026-01-19)
+### Bug Fixes
+* **resource/xelon_persistent_storage**: wait for formatting completion after storage extension
+### Documentation
+* **datasource/xelon_persistent_storage**: update documenation
+* **resource/xelon_persistent_storage**: update documenation
+### Features
+* **datasource/xelon_persistent_storage**: add new data source for persistent storages
+* **resource/xelon_persistent_storage**: add new resource for persistent storages
+### Maintaining
+* enable release announcements in Slack
+* aling naming for device status checks
+* **deps**: update terraform-plugin-testing to v1.14.0
+* **deps**: update terraform-plugin-framework to v1.17.0
+* **deps**: update xelon-sdk-go to v1.2.0
+* **resource/xelon_iso**: fix broken acctest for iso resources
+* **tools**: update golangci-lint to v2.8.0
+
 <a name="v1.0.1"></a>
-## v1.0.1 (2025-12-08)
+## v1.0.1 (2025-12-09)
 ### Bug Fixes
 * **resource/xelon_iso**: use status field for waiting check if ISO is ready
 ### Maintaining

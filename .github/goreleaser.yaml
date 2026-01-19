@@ -1,5 +1,25 @@
 version: 2
 
+announce:
+  slack:
+    enabled: true
+    channel: "#vdc_docker"
+    blocks:
+      - type: header
+        text:
+          type: plain_text
+          text: ":tada: New Release: Terraform Provider Xelon {{ .Tag }}"
+      - type: section
+        text:
+          type: mrkdwn
+          text: "{{ .ReleaseURL }}"
+      - type: divider
+      - type: section
+        text:
+          type: mrkdwn
+          text: |
+            {{ .ReleaseNotes }}
+
 archives:
   - files:
       - LICENSE
