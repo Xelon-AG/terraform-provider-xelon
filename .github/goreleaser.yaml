@@ -17,8 +17,7 @@ announce:
       - type: section
         text:
           type: mrkdwn
-          text: |
-            {{ .ReleaseNotes }}
+          text: "{{ .ReleaseNotes }}"
 
 archives:
   - files:
