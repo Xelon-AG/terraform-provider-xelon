@@ -4,20 +4,13 @@ announce:
   slack:
     enabled: true
     channel: "#vdc_docker"
-    blocks:
-      - type: header
-        text:
-          type: plain_text
-          text: ":tada: New Release: Terraform Provider Xelon {{ .Tag }}"
-      - type: section
-        text:
-          type: mrkdwn
-          text: "{{ .ReleaseURL }}"
-      - type: divider
-      - type: section
-        text:
-          type: mrkdwn
-          text: "{{ .ReleaseNotes }}"
+    icon_emoji: ':rocket:'
+    message_template: |
+      :rocket: *Terraform Provider Xelon {{ .Tag }}* has been released!
+
+      {{ .ReleaseNotes }}
+
+      <{{ .ReleaseURL }}|View Release on GitHub>
 
 archives:
   - files:
