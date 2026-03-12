@@ -1,4 +1,9 @@
 
+<a name="v1.2.0"></a>
+## v1.2.0 (2026-03-12)
+### Features
+* **resource/xelon_device**: add user_data field for cloud-init support
+
 <a name="v1.1.0"></a>
 ## v1.1.0 (2026-01-19)
 ### Bug Fixes
