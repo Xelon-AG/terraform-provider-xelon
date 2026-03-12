@@ -59,6 +59,7 @@ resource "xelon_device" "server" {
 - `script_id` (String) The ID of the script to be executed during the device setup.
 - `send_email` (Boolean) Whether to send an email notification upon successful device creation.
 - `ssh_key_id` (String) The ID of the SSH key to be used for authentication.
+- `user_data` (String) User data to provide when launching the device. Updates to this field will force a new resource to be created.
 
 ### Read-Only
 

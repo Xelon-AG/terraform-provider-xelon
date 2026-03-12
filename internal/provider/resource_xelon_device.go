@@ -47,6 +47,7 @@ type deviceResourceModel struct {
 	SwapDiskSize     types.Int64                  `tfsdk:"swap_disk_size"`
 	TemplateID       types.String                 `tfsdk:"template_id"`
 	TenantID         types.String                 `tfsdk:"tenant_id"`
+	UserData         types.String                 `tfsdk:"user_data"`
 }
 
 type deviceNetworkResourceModel struct {
@@ -180,6 +181,13 @@ Devices are the virtual machines that run your applications.
 				MarkdownDescription: "The tenant ID to whom the device belongs.",
 				Required:            true,
 			},
+			"user_data": schema.StringAttribute{
+				MarkdownDescription: "User data to provide when launching the device. Updates to this field will force a new resource to be created.",
+				Optional:            true,
+				PlanModifiers: []planmodifier.String{
+					stringplanmodifier.RequiresReplace(),
+				},
+			},
 		},
 	}
 }
@@ -237,6 +245,11 @@ func (r *deviceResource) Create(ctx context.Context, request resource.CreateRequ
 		SwapDiskSize:         int(data.SwapDiskSize.ValueInt64()),
 		TemplateID:           data.TemplateID.ValueString(),
 		TenantID:             data.TenantID.ValueString(),
+	}
+	if data.UserData.ValueString() != "" {
+		createRequest.CloudInit = &xelon.DeviceCloudInit{
+			UserData: data.UserData.ValueString(),
+		}
 	}
 	tflog.Debug(ctx, "Creating device", map[string]any{"payload": createRequest})
 	createdDevice, _, err := r.client.Devices.Create(ctx, createRequest)
