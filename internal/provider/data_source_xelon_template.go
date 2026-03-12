@@ -148,7 +148,7 @@ func (d *templateDataSource) Read(ctx context.Context, request datasource.ReadRe
 		tflog.Info(ctx, "Searching for template by name", map[string]any{"template_name": templateName})
 
 		tflog.Debug(ctx, "Getting templates", map[string]any{"template_name": templateName})
-		templates, _, err := d.client.Templates.List(ctx, &xelon.TenantListOptions{Search: templateName})
+		templates, _, err := d.client.Templates.List(ctx, &xelon.TemplateListOptions{Search: templateName})
 		if err != nil {
 			response.Diagnostics.AddError("Unable to search template by name", err.Error())
 			return
