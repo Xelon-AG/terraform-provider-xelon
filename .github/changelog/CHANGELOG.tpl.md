@@ -1,6 +1,5 @@
 {{ if .Versions -}}
 {{ if .Unreleased.CommitGroups -}}
-<a name="unreleased"></a>
 ## [Unreleased]
 {{ range .Unreleased.CommitGroups -}}
 ### {{ .Title }}
@@ -20,7 +19,6 @@
 {{ end -}}
 
 {{ range .Versions }}
-<a name="{{ .Tag.Name }}"></a>
 ## {{ .Tag.Name }} ({{ datetime "2006-01-02" .Tag.Date }})
 {{ range .CommitGroups -}}
 ### {{ .Title }}
