@@ -1,4 +1,11 @@
 
+<a name="v1.2.1"></a>
+## v1.2.1 (2026-03-17)
+### Bug Fixes
+* **resource/xelon_device**: deprecate enable_monitoring attribute
+### Maintaining
+* don't use blocks for release announcements in Slack
+
 <a name="v1.2.0"></a>
 ## v1.2.0 (2026-03-12)
 ### Features
