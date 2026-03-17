@@ -94,6 +94,7 @@ Devices are the virtual machines that run your applications.
 				Required:            true,
 			},
 			"enable_monitoring": schema.BoolAttribute{
+				DeprecationMessage:  "enable_monitoring is deprecated and will not be supported in a future release.",
 				MarkdownDescription: "Whether to enable monitoring for the device.",
 				Optional:            true,
 				Computed:            true,
@@ -288,7 +289,6 @@ func (r *deviceResource) Create(ctx context.Context, request resource.CreateRequ
 	// map response body to attributes
 	data.CPUCoreCount = types.Int64Value(int64(device.CPUCores))
 	data.DisplayName = types.StringValue(device.DisplayName)
-	data.EnableMonitoring = types.BoolValue(device.MonitoringEnabled)
 	data.Hostname = types.StringValue(device.HostName)
 	data.ID = types.StringValue(device.ID)
 	data.Memory = types.Int64Value(int64(device.RAM))
@@ -324,7 +324,6 @@ func (r *deviceResource) Read(ctx context.Context, request resource.ReadRequest,
 	// map response body to attributes
 	data.CPUCoreCount = types.Int64Value(int64(device.CPUCores))
 	data.DisplayName = types.StringValue(device.DisplayName)
-	data.EnableMonitoring = types.BoolValue(device.MonitoringEnabled)
 	data.Hostname = types.StringValue(device.HostName)
 	data.ID = types.StringValue(device.ID)
 	data.Memory = types.Int64Value(int64(device.RAM))
