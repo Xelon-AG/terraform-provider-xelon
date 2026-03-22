@@ -63,7 +63,9 @@ resource "xelon_device" "server" {
 
 ### Read-Only
 
+- `disk_id` (String) The ID of the primary disk.
 - `id` (String) The ID of the device.
+- `swap_disk_id` (String) The ID of the swap disk.
 
 <a id="nestedatt--networks"></a>
 ### Nested Schema for `networks`

@@ -57,3 +57,35 @@ func WaitDeviceStateReady(ctx context.Context, client *xelon.Client, deviceID st
 	}
 	return nil
 }
+
+func WaitDeviceDiskSizeUpdated(ctx context.Context, client *xelon.Client, deviceID, diskID string, expectedDiskSize int) error {
+	stateConf := &retry.StateChangeConf{
+		Pending:    []string{deviceDiskProvisioning},
+		Target:     []string{deviceDiskUpdated},
+		Timeout:    10 * time.Minute,
+		MinTimeout: 5 * time.Second,
+		Delay:      3 * time.Second,
+		Refresh:    statusDeviceDiskUpdated(ctx, client, deviceID, diskID, expectedDiskSize),
+	}
+
+	if _, err := stateConf.WaitForStateContext(ctx); err != nil {
+		return fmt.Errorf("failed to wait for device disk (%s) to become updated: %w", diskID, err)
+	}
+	return nil
+}
+
+func WaitDeviceSnapshotsDeleted(ctx context.Context, client *xelon.Client, deviceID string) error {
+	stateConf := &retry.StateChangeConf{
+		Pending:    []string{deviceDiskSnapshotsExist},
+		Target:     []string{deviceDiskSnapshotsMissing},
+		Timeout:    10 * time.Minute,
+		MinTimeout: 5 * time.Second,
+		Delay:      3 * time.Second,
+		Refresh:    statusDeviceSnapshotsEmpty(ctx, client, deviceID),
+	}
+
+	if _, err := stateConf.WaitForStateContext(ctx); err != nil {
+		return fmt.Errorf("failed to wait for device (%s) snapshot to become deleted: %w", deviceID, err)
+	}
+	return nil
+}

@@ -2,7 +2,9 @@ package provider
 
 import (
 	"context"
+	"errors"
 	"net/http"
+	"slices"
 
 	"github.com/hashicorp/terraform-plugin-framework/path"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
@@ -33,6 +35,7 @@ type deviceResource struct {
 type deviceResourceModel struct {
 	BackupJobID      types.Int64                  `tfsdk:"backup_job_id"`
 	CPUCoreCount     types.Int64                  `tfsdk:"cpu_core_count"`
+	DiskID           types.String                 `tfsdk:"disk_id"`
 	DiskSize         types.Int64                  `tfsdk:"disk_size"`
 	DisplayName      types.String                 `tfsdk:"display_name"`
 	EnableMonitoring types.Bool                   `tfsdk:"enable_monitoring"`
@@ -44,6 +47,7 @@ type deviceResourceModel struct {
 	SendEmail        types.Bool                   `tfsdk:"send_email"`
 	SSHKeyID         types.String                 `tfsdk:"ssh_key_id"`
 	ScriptID         types.String                 `tfsdk:"script_id"`
+	SwapDiskID       types.String                 `tfsdk:"swap_disk_id"`
 	SwapDiskSize     types.Int64                  `tfsdk:"swap_disk_size"`
 	TemplateID       types.String                 `tfsdk:"template_id"`
 	TenantID         types.String                 `tfsdk:"tenant_id"`
@@ -85,9 +89,19 @@ Devices are the virtual machines that run your applications.
 				MarkdownDescription: "The number of CPU cores to allocate to the device.",
 				Required:            true,
 			},
+			"disk_id": schema.StringAttribute{
+				MarkdownDescription: "The ID of the primary disk.",
+				Computed:            true,
+				PlanModifiers: []planmodifier.String{
+					stringplanmodifier.UseStateForUnknown(),
+				},
+			},
 			"disk_size": schema.Int64Attribute{
 				MarkdownDescription: "The size of the primary disk in GB.",
 				Required:            true,
+				PlanModifiers: []planmodifier.Int64{
+					helper.ExpandOnlyStorageSizeModifier(),
+				},
 			},
 			"display_name": schema.StringAttribute{
 				MarkdownDescription: "The name of the device.",
@@ -167,9 +181,19 @@ Devices are the virtual machines that run your applications.
 					stringplanmodifier.UseStateForUnknown(),
 				},
 			},
+			"swap_disk_id": schema.StringAttribute{
+				MarkdownDescription: "The ID of the swap disk.",
+				Computed:            true,
+				PlanModifiers: []planmodifier.String{
+					stringplanmodifier.UseStateForUnknown(),
+				},
+			},
 			"swap_disk_size": schema.Int64Attribute{
 				MarkdownDescription: "The size of the swap disk in GB.",
 				Required:            true,
+				PlanModifiers: []planmodifier.Int64{
+					helper.ExpandOnlyStorageSizeModifier(),
+				},
 			},
 			"template_id": schema.StringAttribute{
 				MarkdownDescription: "The template ID used to create the device.",
@@ -286,9 +310,18 @@ func (r *deviceResource) Create(ctx context.Context, request resource.CreateRequ
 	}
 	tflog.Debug(ctx, "Got device with enriched properties", map[string]any{"data": device})
 
+	primaryDisk := findDiskIDBySize(ctx, int(data.DiskSize.ValueInt64()), device.Storages)
+	swapDisk := findDiskIDBySize(ctx, int(data.SwapDiskSize.ValueInt64()), device.Storages)
 	// map response body to attributes
+	if primaryDisk != nil {
+		data.DiskID = types.StringValue(primaryDisk.ID)
+	}
+	if swapDisk != nil {
+		data.SwapDiskID = types.StringValue(swapDisk.ID)
+	}
 	data.CPUCoreCount = types.Int64Value(int64(device.CPUCores))
 	data.DisplayName = types.StringValue(device.DisplayName)
+	data.EnableMonitoring = types.BoolValue(false)
 	data.Hostname = types.StringValue(device.HostName)
 	data.ID = types.StringValue(device.ID)
 	data.Memory = types.Int64Value(int64(device.RAM))
@@ -321,9 +354,18 @@ func (r *deviceResource) Read(ctx context.Context, request resource.ReadRequest,
 	}
 	tflog.Debug(ctx, "Got device", map[string]any{"data": device})
 
+	primaryDisk := findDiskIDBySize(ctx, int(data.DiskSize.ValueInt64()), device.Storages)
+	swapDisk := findDiskIDBySize(ctx, int(data.SwapDiskSize.ValueInt64()), device.Storages)
 	// map response body to attributes
+	if primaryDisk != nil {
+		data.DiskID = types.StringValue(primaryDisk.ID)
+	}
+	if swapDisk != nil {
+		data.SwapDiskID = types.StringValue(swapDisk.ID)
+	}
 	data.CPUCoreCount = types.Int64Value(int64(device.CPUCores))
 	data.DisplayName = types.StringValue(device.DisplayName)
+	data.EnableMonitoring = types.BoolValue(false)
 	data.Hostname = types.StringValue(device.HostName)
 	data.ID = types.StringValue(device.ID)
 	data.Memory = types.Int64Value(int64(device.RAM))
@@ -333,32 +375,96 @@ func (r *deviceResource) Read(ctx context.Context, request resource.ReadRequest,
 }
 
 func (r *deviceResource) Update(ctx context.Context, request resource.UpdateRequest, response *resource.UpdateResponse) {
-	// var plan, state deviceResourceModel
-	//
-	// // read plan and state data into the model
-	// response.Diagnostics.Append(request.Plan.Get(ctx, &plan)...)
-	// response.Diagnostics.Append(request.State.Get(ctx, &state)...)
-	// if response.Diagnostics.HasError() {
-	// 	return
-	// }
-	//
-	// deviceID := state.ID.ValueString()
-	//
-	// if !plan.DisplayName.Equal(state.DisplayName) {
-	// 	updateRequest := &xelon.DeviceUpdateRequest{
-	// 		DisplayName: plan.DisplayName.ValueString(),
-	// 	}
-	// 	tflog.Debug(ctx, "Updating device name", map[string]any{"device_id": deviceID, "payload": updateRequest})
-	// 	updatedDevice, _, err := r.client.Devices.Update(ctx, deviceID, updateRequest)
-	// 	if err != nil {
-	// 		response.Diagnostics.AddError("Unable to update device name", err.Error())
-	// 		return
-	// 	}
-	// 	tflog.Debug(ctx, "Updated device name", map[string]any{"data": updatedDevice})
-	//
-	// 	plan.DisplayName = types.StringValue(updatedDevice.DisplayName)
-	// }
-	//
+	var plan, state deviceResourceModel
+
+	// read plan and state data into the model
+	response.Diagnostics.Append(request.Plan.Get(ctx, &plan)...)
+	response.Diagnostics.Append(request.State.Get(ctx, &state)...)
+	if response.Diagnostics.HasError() {
+		return
+	}
+
+	deviceID := state.ID.ValueString()
+
+	if !plan.DisplayName.Equal(state.DisplayName) {
+		updateRequest := &xelon.DeviceUpdateRequest{
+			DisplayName: plan.DisplayName.ValueString(),
+		}
+		tflog.Debug(ctx, "Updating device name", map[string]any{"device_id": deviceID, "payload": updateRequest})
+		updatedDevice, _, err := r.client.Devices.Update(ctx, deviceID, updateRequest)
+		if err != nil {
+			response.Diagnostics.AddError("Unable to update device name", err.Error())
+			return
+		}
+		tflog.Debug(ctx, "Updated device name", map[string]any{"data": updatedDevice})
+
+		plan.DisplayName = types.StringValue(updatedDevice.DisplayName)
+	}
+
+	if !plan.DiskSize.Equal(state.DiskSize) {
+		err := deleteSnapshotsIfNeeded(ctx, r.client, deviceID)
+		if err != nil {
+			response.Diagnostics.AddError("Unable to delete device disk snapshots", err.Error())
+			return
+		}
+
+		diskID := plan.DiskID.ValueString()
+		newDiskSize := int(plan.DiskSize.ValueInt64())
+		updateRequest := &xelon.DeviceUpdateDiskRequest{
+			CreateSnapshot:  true,
+			DiskID:          diskID,
+			ExtendPartition: true,
+			Size:            newDiskSize,
+		}
+		tflog.Debug(ctx, "Updating disk size", map[string]any{"device_id": deviceID, "payload": updateRequest})
+		device, _, err := r.client.Devices.UpdateDisk(ctx, deviceID, updateRequest)
+		if err != nil {
+			response.Diagnostics.AddError("Unable to update disk size", err.Error())
+			return
+		}
+		tflog.Debug(ctx, "Updated disk size", map[string]any{"device_id": deviceID, "data": device})
+
+		tflog.Info(ctx, "Waiting for disk size to be updated after extension")
+		err = helper.WaitDeviceDiskSizeUpdated(ctx, r.client, deviceID, diskID, newDiskSize)
+		if err != nil {
+			response.Diagnostics.AddError("Unable to wait for disk size to be updated", err.Error())
+			return
+		}
+		tflog.Info(ctx, "Disk is updated after extension")
+	}
+
+	if !plan.SwapDiskSize.Equal(state.SwapDiskSize) {
+		err := deleteSnapshotsIfNeeded(ctx, r.client, deviceID)
+		if err != nil {
+			response.Diagnostics.AddError("Unable to delete device disk snapshots", err.Error())
+			return
+		}
+
+		swapDiskID := plan.SwapDiskID.ValueString()
+		newSwapDiskSize := int(plan.SwapDiskSize.ValueInt64())
+		updateRequest := &xelon.DeviceUpdateDiskRequest{
+			CreateSnapshot:  true,
+			DiskID:          swapDiskID,
+			ExtendPartition: true,
+			Size:            newSwapDiskSize,
+		}
+		tflog.Debug(ctx, "Updating swap disk size", map[string]any{"device_id": deviceID, "payload": updateRequest})
+		device, _, err := r.client.Devices.UpdateDisk(ctx, deviceID, updateRequest)
+		if err != nil {
+			response.Diagnostics.AddError("Unable to update swap disk size", err.Error())
+			return
+		}
+		tflog.Debug(ctx, "Updated swap disk size", map[string]any{"device_id": deviceID, "data": device})
+
+		tflog.Info(ctx, "Waiting for swap disk size to be updated after extension")
+		err = helper.WaitDeviceDiskSizeUpdated(ctx, r.client, deviceID, swapDiskID, newSwapDiskSize)
+		if err != nil {
+			response.Diagnostics.AddError("Unable to wait for swap disk size to be updated", err.Error())
+			return
+		}
+		tflog.Info(ctx, "Swap disk is updated after extension")
+	}
+
 	// if !plan.CPUCoreCount.Equal(state.CPUCoreCount) || !plan.Memory.Equal(state.Memory) {
 	// 	// device must be stopped before changing CPU count and RAM
 	// 	tflog.Debug(ctx, "Getting device", map[string]any{"device_id": deviceID})
@@ -435,8 +541,9 @@ func (r *deviceResource) Update(ctx context.Context, request resource.UpdateRequ
 	// 	plan.Memory = types.Int64Value(int64(device.RAM))
 	// }
 	//
-	// diags := response.State.Set(ctx, &plan)
-	// response.Diagnostics.Append(diags...)
+
+	diags := response.State.Set(ctx, &plan)
+	response.Diagnostics.Append(diags...)
 }
 
 func (r *deviceResource) Delete(ctx context.Context, request resource.DeleteRequest, response *resource.DeleteResponse) {
@@ -487,4 +594,61 @@ func (r *deviceResource) Delete(ctx context.Context, request resource.DeleteRequ
 
 func (r *deviceResource) ImportState(ctx context.Context, request resource.ImportStateRequest, response *resource.ImportStateResponse) {
 	resource.ImportStatePassthroughID(ctx, path.Root("id"), request, response)
+}
+
+// findDiskIDBySize looks up for xelon.DeviceStorage by size. If multiple disks are found,
+// the disk with lower unit_number is preferred.
+func findDiskIDBySize(ctx context.Context, diskSize int, storages []xelon.DeviceStorage) *xelon.DeviceStorage {
+	var storagesMatchedBySize []*xelon.DeviceStorage
+	for _, storage := range storages {
+		if storage.Size == diskSize {
+			storagesMatchedBySize = append(storagesMatchedBySize, &storage)
+		}
+	}
+	if len(storagesMatchedBySize) == 0 {
+		tflog.Warn(ctx, "No disk with requested size was found", map[string]any{"disk_size": diskSize, "storages": storages})
+		return nil
+	}
+
+	slices.SortFunc(storagesMatchedBySize, func(first *xelon.DeviceStorage, second *xelon.DeviceStorage) int {
+		return first.UnitNumber - second.UnitNumber
+	})
+	return storagesMatchedBySize[0]
+}
+
+func deleteSnapshotsIfNeeded(ctx context.Context, client *xelon.Client, deviceID string) error {
+	snapshots, _, err := client.Snapshots.List(ctx, deviceID, nil)
+	if err != nil {
+		return err
+	}
+	if len(snapshots) == 0 {
+		return nil
+	}
+
+	tflog.Info(ctx, "Deleting snapshots for device", map[string]any{
+		"device_id": deviceID,
+		"snapshots": snapshots,
+	})
+	var errs []error
+	for _, snapshot := range snapshots {
+		_, err := client.Snapshots.Delete(ctx, deviceID, snapshot.ID, &xelon.SnapshotDeleteRequest{RemoveChildSnapshots: true})
+		if err != nil {
+			tflog.Error(ctx, "Unable to delete snapshot", map[string]any{
+				"device_id":   deviceID,
+				"snapshot_id": snapshot.ID,
+			})
+			errs = append(errs, err)
+		}
+		tflog.Debug(ctx, "Deleted snapshot", map[string]any{
+			"device_id":   deviceID,
+			"snapshot_id": snapshot.ID,
+		})
+	}
+
+	err = helper.WaitDeviceSnapshotsDeleted(ctx, client, deviceID)
+	if err != nil {
+		errs = append(errs, err)
+	}
+
+	return errors.Join(errs...)
 }
