@@ -35,6 +35,7 @@ type deviceResource struct {
 type deviceResourceModel struct {
 	BackupJobID      types.Int64                  `tfsdk:"backup_job_id"`
 	CPUCoreCount     types.Int64                  `tfsdk:"cpu_core_count"`
+	CPUCoreHotPlug   types.Bool                   `tfsdk:"cpu_core_hotplug"`
 	DiskID           types.String                 `tfsdk:"disk_id"`
 	DiskSize         types.Int64                  `tfsdk:"disk_size"`
 	DisplayName      types.String                 `tfsdk:"display_name"`
@@ -42,6 +43,7 @@ type deviceResourceModel struct {
 	Hostname         types.String                 `tfsdk:"hostname"`
 	ID               types.String                 `tfsdk:"id"`
 	Memory           types.Int64                  `tfsdk:"memory"`
+	MemoryHotPlug    types.Bool                   `tfsdk:"memory_hotplug"`
 	Networks         []deviceNetworkResourceModel `tfsdk:"networks"`
 	Password         types.String                 `tfsdk:"password"`
 	SendEmail        types.Bool                   `tfsdk:"send_email"`
@@ -89,6 +91,15 @@ Devices are the virtual machines that run your applications.
 				MarkdownDescription: "The number of CPU cores to allocate to the device.",
 				Required:            true,
 			},
+			"cpu_core_hotplug": schema.BoolAttribute{
+				MarkdownDescription: "If `true`, enables CPU core hot‑plug functionality for the device. " +
+					"It allows dynamically adding or removing CPU cores without powering off the device.",
+				Optional: true,
+				Computed: true,
+				PlanModifiers: []planmodifier.Bool{
+					boolplanmodifier.UseStateForUnknown(),
+				},
+			},
 			"disk_id": schema.StringAttribute{
 				MarkdownDescription: "The ID of the primary disk.",
 				Computed:            true,
@@ -130,6 +141,15 @@ Devices are the virtual machines that run your applications.
 			"memory": schema.Int64Attribute{
 				MarkdownDescription: "The amount of RAM in GB to allocate to the device.",
 				Required:            true,
+			},
+			"memory_hotplug": schema.BoolAttribute{
+				MarkdownDescription: "If `true`, enables memory hot‑plug functionality for the device. " +
+					"It allows dynamically increasing or decreasing the amount of RAM without powering off the device.",
+				Optional: true,
+				Computed: true,
+				PlanModifiers: []planmodifier.Bool{
+					boolplanmodifier.UseStateForUnknown(),
+				},
 			},
 			"networks": schema.SetNestedAttribute{
 				MarkdownDescription: "The networks configured for the device.",
@@ -276,6 +296,12 @@ func (r *deviceResource) Create(ctx context.Context, request resource.CreateRequ
 			UserData: data.UserData.ValueString(),
 		}
 	}
+	if data.CPUCoreHotPlug.ValueBool() {
+		createRequest.EnableCPUCoresHotAdd = data.CPUCoreHotPlug.ValueBool()
+	}
+	if data.MemoryHotPlug.ValueBool() {
+		createRequest.EnableRAMHotAdd = data.MemoryHotPlug.ValueBool()
+	}
 	tflog.Debug(ctx, "Creating device", map[string]any{"payload": createRequest})
 	createdDevice, _, err := r.client.Devices.Create(ctx, createRequest)
 	if err != nil {
@@ -320,11 +346,13 @@ func (r *deviceResource) Create(ctx context.Context, request resource.CreateRequ
 		data.SwapDiskID = types.StringValue(swapDisk.ID)
 	}
 	data.CPUCoreCount = types.Int64Value(int64(device.CPUCores))
+	data.CPUCoreHotPlug = types.BoolValue(device.CPUCoresHotAddEnabled)
 	data.DisplayName = types.StringValue(device.DisplayName)
 	data.EnableMonitoring = types.BoolValue(false)
 	data.Hostname = types.StringValue(device.HostName)
 	data.ID = types.StringValue(device.ID)
 	data.Memory = types.Int64Value(int64(device.RAM))
+	data.MemoryHotPlug = types.BoolValue(device.RAMHotAddEnabled)
 
 	diags = response.State.Set(ctx, &data)
 	response.Diagnostics.Append(diags...)
@@ -364,11 +392,13 @@ func (r *deviceResource) Read(ctx context.Context, request resource.ReadRequest,
 		data.SwapDiskID = types.StringValue(swapDisk.ID)
 	}
 	data.CPUCoreCount = types.Int64Value(int64(device.CPUCores))
+	data.CPUCoreHotPlug = types.BoolValue(device.CPUCoresHotAddEnabled)
 	data.DisplayName = types.StringValue(device.DisplayName)
 	data.EnableMonitoring = types.BoolValue(false)
 	data.Hostname = types.StringValue(device.HostName)
 	data.ID = types.StringValue(device.ID)
 	data.Memory = types.Int64Value(int64(device.RAM))
+	data.MemoryHotPlug = types.BoolValue(device.RAMHotAddEnabled)
 
 	diags = response.State.Set(ctx, &data)
 	response.Diagnostics.Append(diags...)
@@ -465,82 +495,81 @@ func (r *deviceResource) Update(ctx context.Context, request resource.UpdateRequ
 		tflog.Info(ctx, "Swap disk is updated after extension")
 	}
 
-	// if !plan.CPUCoreCount.Equal(state.CPUCoreCount) || !plan.Memory.Equal(state.Memory) {
-	// 	// device must be stopped before changing CPU count and RAM
-	// 	tflog.Debug(ctx, "Getting device", map[string]any{"device_id": deviceID})
-	// 	device, _, err := r.client.Devices.Get(ctx, deviceID)
-	// 	if err != nil {
-	// 		response.Diagnostics.AddError("Unable to get device", err.Error())
-	// 		return
-	// 	}
-	// 	tflog.Debug(ctx, "Got device", map[string]any{"data": device})
-	// 	if device.PoweredOn {
-	// 		tflog.Info(ctx, "Stopping device", map[string]any{"device_id": deviceID})
-	// 		_, err := r.client.Devices.Stop(ctx, deviceID)
-	// 		if err != nil {
-	// 			response.Diagnostics.AddError("Unable to stop device", err.Error())
-	// 			return
-	// 		}
-	//
-	// 		err = helper.WaitDevicePowerStateOff(ctx, r.client, deviceID)
-	// 		if err != nil {
-	// 			response.Diagnostics.AddError("Unable to wait for device to be powered off", err.Error())
-	// 			return
-	// 		}
-	// 	}
-	//
-	// 	updateRequest := &xelon.DeviceUpdateHardwareRequest{
-	// 		CPUCores: int(plan.CPUCoreCount.ValueInt64()),
-	// 		RAM:      int(plan.Memory.ValueInt64()),
-	// 	}
-	// 	tflog.Debug(ctx, "Updating device hardware", map[string]any{"device_id": deviceID, "payload": updateRequest})
-	// 	updatedDevice, _, err := r.client.Devices.UpdateHardware(ctx, deviceID, updateRequest)
-	// 	if err != nil {
-	// 		response.Diagnostics.AddError("Unable to update device hardware", err.Error())
-	// 		return
-	// 	}
-	// 	tflog.Debug(ctx, "Updated device hardware", map[string]any{"data": updatedDevice})
-	//
-	// 	tflog.Debug(ctx, "Getting device with enriched data", map[string]any{"device_id": deviceID})
-	// 	device, _, err = r.client.Devices.Get(ctx, deviceID)
-	// 	if err != nil {
-	// 		response.Diagnostics.AddError("Unable to get device", err.Error())
-	// 		return
-	// 	}
-	// 	tflog.Debug(ctx, "Got device with enriched data", map[string]any{"data": device})
-	// 	if !device.PoweredOn {
-	// 		tflog.Info(ctx, "Starting device", map[string]any{"device_id": deviceID})
-	// 		_, err := r.client.Devices.Start(ctx, deviceID)
-	// 		if err != nil {
-	// 			response.Diagnostics.AddError("Unable to start device", err.Error())
-	// 			return
-	// 		}
-	//
-	// 		err = helper.WaitDevicePowerStateOn(ctx, r.client, deviceID)
-	// 		if err != nil {
-	// 			response.Diagnostics.AddError("Unable to wait for device to be powered on", err.Error())
-	// 			return
-	// 		}
-	// 	}
-	//
-	// 	err = helper.WaitDeviceHostnameConfigured(ctx, r.client, deviceID)
-	// 	if err != nil {
-	// 		response.Diagnostics.AddError("Unable to wait for device to have hostname configured", err.Error())
-	// 		return
-	// 	}
-	//
-	// 	tflog.Debug(ctx, "Getting device with enriched data", map[string]any{"device_id": deviceID})
-	// 	device, _, err = r.client.Devices.Get(ctx, deviceID)
-	// 	if err != nil {
-	// 		response.Diagnostics.AddError("Unable to get device", err.Error())
-	// 		return
-	// 	}
-	// 	tflog.Debug(ctx, "Got device with enriched data", map[string]any{"data": device})
-	//
-	// 	plan.CPUCoreCount = types.Int64Value(int64(device.CPUCores))
-	// 	plan.Memory = types.Int64Value(int64(device.RAM))
-	// }
-	//
+	if !plan.CPUCoreCount.Equal(state.CPUCoreCount) || !plan.Memory.Equal(state.Memory) {
+		// device must be stopped before changing CPU count and RAM if hotplug is false
+		deviceMustBeRestarted := !state.CPUCoreHotPlug.ValueBool() || !state.MemoryHotPlug.ValueBool()
+		if deviceMustBeRestarted {
+			tflog.Debug(ctx, "Getting device", map[string]any{"device_id": deviceID})
+			device, _, err := r.client.Devices.Get(ctx, deviceID)
+			if err != nil {
+				response.Diagnostics.AddError("Unable to get device", err.Error())
+				return
+			}
+			tflog.Debug(ctx, "Got device", map[string]any{"data": device})
+			if device.PoweredOn {
+				tflog.Debug(ctx, "Stopping device", map[string]any{"device_id": deviceID})
+				_, err := r.client.Devices.Stop(ctx, deviceID)
+				if err != nil {
+					response.Diagnostics.AddError("Unable to stop device", err.Error())
+					return
+				}
+
+				err = helper.WaitDevicePowerStateOff(ctx, r.client, deviceID)
+				if err != nil {
+					response.Diagnostics.AddError("Unable to wait for device to be powered off", err.Error())
+					return
+				}
+			}
+		}
+
+		updateRequest := &xelon.DeviceUpdateHardwareRequest{
+			CPUCores: int(plan.CPUCoreCount.ValueInt64()),
+			RAM:      int(plan.Memory.ValueInt64()),
+		}
+		tflog.Debug(ctx, "Updating device hardware", map[string]any{"device_id": deviceID, "payload": updateRequest})
+		updatedDevice, _, err := r.client.Devices.UpdateHardware(ctx, deviceID, updateRequest)
+		if err != nil {
+			response.Diagnostics.AddError("Unable to update device hardware", err.Error())
+			return
+		}
+		tflog.Debug(ctx, "Updated device hardware", map[string]any{"data": updatedDevice})
+
+		// device must be started after changing CUP count and RAM if hotplug is false
+		if deviceMustBeRestarted {
+			tflog.Debug(ctx, "Getting device", map[string]any{"device_id": deviceID})
+			device, _, err := r.client.Devices.Get(ctx, deviceID)
+			if err != nil {
+				response.Diagnostics.AddError("Unable to get device", err.Error())
+				return
+			}
+			tflog.Debug(ctx, "Got device", map[string]any{"data": device})
+			if !device.PoweredOn {
+				tflog.Debug(ctx, "Starting device", map[string]any{"device_id": deviceID})
+				_, err := r.client.Devices.Start(ctx, deviceID)
+				if err != nil {
+					response.Diagnostics.AddError("Unable to start device", err.Error())
+					return
+				}
+
+				err = helper.WaitDevicePowerStateOn(ctx, r.client, deviceID)
+				if err != nil {
+					response.Diagnostics.AddError("Unable to wait for device to be powered on", err.Error())
+					return
+				}
+			}
+		}
+
+		tflog.Debug(ctx, "Getting device with enriched data", map[string]any{"device_id": deviceID})
+		device, _, err := r.client.Devices.Get(ctx, deviceID)
+		if err != nil {
+			response.Diagnostics.AddError("Unable to get device", err.Error())
+			return
+		}
+		tflog.Debug(ctx, "Got device with enriched data", map[string]any{"data": device})
+
+		plan.CPUCoreCount = types.Int64Value(int64(device.CPUCores))
+		plan.Memory = types.Int64Value(int64(device.RAM))
+	}
 
 	diags := response.State.Set(ctx, &plan)
 	response.Diagnostics.Append(diags...)
