@@ -55,7 +55,9 @@ resource "xelon_device" "server" {
 ### Optional
 
 - `backup_job_id` (Number) The ID for the backup job.
+- `cpu_core_hotplug` (Boolean) If `true`, enables CPU core hot‑plug functionality for the device. It allows dynamically adding or removing CPU cores without powering off the device.
 - `enable_monitoring` (Boolean, Deprecated) Whether to enable monitoring for the device.
+- `memory_hotplug` (Boolean) If `true`, enables memory hot‑plug functionality for the device. It allows dynamically increasing or decreasing the amount of RAM without powering off the device.
 - `script_id` (String) The ID of the script to be executed during the device setup.
 - `send_email` (Boolean) Whether to send an email notification upon successful device creation.
 - `ssh_key_id` (String) The ID of the SSH key to be used for authentication.
