@@ -13,6 +13,7 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/int64planmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/planmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/stringplanmodifier"
+	"github.com/hashicorp/terraform-plugin-framework/schema/validator"
 	"github.com/hashicorp/terraform-plugin-framework/types"
 	"github.com/hashicorp/terraform-plugin-log/tflog"
 
@@ -157,7 +158,10 @@ Devices are the virtual machines that run your applications.
 					Attributes: map[string]schema.Attribute{
 						"connected": schema.BoolAttribute{
 							MarkdownDescription: "Whether the network should automatically connect when the device powers on.",
-							Required:            true,
+							Optional:            true,
+							PlanModifiers: []planmodifier.Bool{
+								boolplanmodifier.UseStateForUnknown(),
+							},
 						},
 						"id": schema.StringAttribute{
 							MarkdownDescription: "The network ID to which the device will connect.",
@@ -176,9 +180,12 @@ Devices are the virtual machines that run your applications.
 				Required: true,
 			},
 			"password": schema.StringAttribute{
-				MarkdownDescription: "The password for the device root or administrator user.",
-				Required:            true,
+				MarkdownDescription: "The password for the device root or administrator user. Required if `user_data` is empty.",
+				Optional:            true,
 				Sensitive:           true,
+				PlanModifiers: []planmodifier.String{
+					stringplanmodifier.UseStateForUnknown(),
+				},
 			},
 			"send_email": schema.BoolAttribute{
 				MarkdownDescription: "Whether to send an email notification upon successful device creation.",
@@ -209,9 +216,10 @@ Devices are the virtual machines that run your applications.
 				},
 			},
 			"swap_disk_size": schema.Int64Attribute{
-				MarkdownDescription: "The size of the swap disk in GB.",
-				Required:            true,
+				MarkdownDescription: "The size of the swap disk in GB. Required if `user_data` is empty.",
+				Optional:            true,
 				PlanModifiers: []planmodifier.Int64{
+					int64planmodifier.UseStateForUnknown(),
 					helper.ExpandOnlyStorageSizeModifier(),
 				},
 			},
@@ -231,6 +239,13 @@ Devices are the virtual machines that run your applications.
 				Optional:            true,
 				PlanModifiers: []planmodifier.String{
 					stringplanmodifier.RequiresReplace(),
+				},
+				Validators: []validator.String{
+					helper.RequiresValidUserData(path.Expressions{
+						path.MatchRoot("password"),
+						path.MatchRoot("swap_disk_size"),
+					}...,
+					),
 				},
 			},
 		},
