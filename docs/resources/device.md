@@ -47,8 +47,6 @@ resource "xelon_device" "server" {
 - `hostname` (String) The hostname of the device.
 - `memory` (Number) The amount of RAM in GB to allocate to the device.
 - `networks` (Attributes Set) The networks configured for the device. (see [below for nested schema](#nestedatt--networks))
-- `password` (String, Sensitive) The password for the device root or administrator user.
-- `swap_disk_size` (Number) The size of the swap disk in GB.
 - `template_id` (String) The template ID used to create the device.
 - `tenant_id` (String) The tenant ID to whom the device belongs.
 
@@ -58,9 +56,11 @@ resource "xelon_device" "server" {
 - `cpu_core_hotplug` (Boolean) If `true`, enables CPU core hot‑plug functionality for the device. It allows dynamically adding or removing CPU cores without powering off the device.
 - `enable_monitoring` (Boolean, Deprecated) Whether to enable monitoring for the device.
 - `memory_hotplug` (Boolean) If `true`, enables memory hot‑plug functionality for the device. It allows dynamically increasing or decreasing the amount of RAM without powering off the device.
+- `password` (String, Sensitive) The password for the device root or administrator user. Required if `user_data` is empty.
 - `script_id` (String) The ID of the script to be executed during the device setup.
 - `send_email` (Boolean) Whether to send an email notification upon successful device creation.
 - `ssh_key_id` (String) The ID of the SSH key to be used for authentication.
+- `swap_disk_size` (Number) The size of the swap disk in GB. Required if `user_data` is empty.
 - `user_data` (String) User data to provide when launching the device. Updates to this field will force a new resource to be created.
 
 ### Read-Only
@@ -74,10 +74,10 @@ resource "xelon_device" "server" {
 
 Required:
 
-- `connected` (Boolean) Whether the network should automatically connect when the device powers on.
 - `id` (String) The network ID to which the device will connect.
 
 Optional:
 
+- `connected` (Boolean) Whether the network should automatically connect when the device powers on.
 - `ipv4_address` (String) The static IP address for the network connection.
 - `ipv4_address_id` (String) The ID of the static IP address for the network connection.
