@@ -1,17 +1,23 @@
 
-<a name="v1.2.1"></a>
+## v1.3.0 (2026-03-23)
+### Bug Fixes
+* **resource/xelon_device**: make attributes required depending on user_data
+* **resource/xelon_device**: handle resizing for primary and swap disk
+### Features
+* **resource/xelon_device**: add attributes to enable CPU and RAM hotplug functionality
+### Maintaining
+* **slack**: fix issue with invalid characters in blocks
+
 ## v1.2.1 (2026-03-17)
 ### Bug Fixes
 * **resource/xelon_device**: deprecate enable_monitoring attribute
 ### Maintaining
 * don't use blocks for release announcements in Slack
 
-<a name="v1.2.0"></a>
 ## v1.2.0 (2026-03-12)
 ### Features
 * **resource/xelon_device**: add user_data field for cloud-init support
 
-<a name="v1.1.0"></a>
 ## v1.1.0 (2026-01-19)
 ### Bug Fixes
 * **resource/xelon_persistent_storage**: wait for formatting completion after storage extension
@@ -30,7 +36,6 @@
 * **resource/xelon_iso**: fix broken acctest for iso resources
 * **tools**: update golangci-lint to v2.8.0
 
-<a name="v1.0.1"></a>
 ## v1.0.1 (2025-12-09)
 ### Bug Fixes
 * **resource/xelon_iso**: use status field for waiting check if ISO is ready
@@ -40,7 +45,6 @@
 * **deps**: update xelon-sdk-go to v1.1.1
 * **resource/xelon_iso**: add acceptance tests
 
-<a name="v1.0.0"></a>
 ## v1.0.0 (2025-11-29)
 ### Bug Fixes
 * **datasource/xelon_network**: isolate model for cloud representation
@@ -63,7 +67,6 @@
 ### Maintaining
 * **goreleaser**: exclude windows_arm_6 from builds
 
-<a name="v1.0.0-rc14"></a>
 ## v1.0.0-rc14 (2025-11-26)
 ### Bug Fixes
 * **datasource/xelon_cloud**: add cloud type attribute
@@ -79,12 +82,10 @@
 * **tools**: sync golangci config with scaffolding repo
 * **tools**: migrate golangci-lint to v2
 
-<a name="v1.0.0-rc13"></a>
 ## v1.0.0-rc13 (2025-05-15)
 ### Bug Fixes
 * **resource/xelon_network**: make optional attributes computed
 
-<a name="v1.0.0-rc12"></a>
 ## v1.0.0-rc12 (2025-04-23)
 ### Bug Fixes
 * **resource/xelon_load_balancer_forwarding_rule**: use correct backend type for forwarding rule id
@@ -94,21 +95,18 @@
 * **resource/xelon_firewall**: allow to specify external network and ip address
 * **resource/xelon_load_balancer**: allow to specify external network and ip address
 
-<a name="v1.0.0-rc11"></a>
 ## v1.0.0-rc11 (2025-04-07)
 ### Documentation
 * **resource/xelon_firewall_forwarding_rule**: generate documentation with example
 ### Features
 * **resource/xelon_firewall_forwarding_rule**: add new resource to create forwarding rules for firewalls
 
-<a name="v1.0.0-rc10"></a>
 ## v1.0.0-rc10 (2025-03-24)
 ### Documentation
 * **resource/xelon_firewall**: update documentation
 ### Features
 * **resource/xelon_firewall**: add new resource to manage firewalls
 
-<a name="v1.0.0-rc9"></a>
 ## v1.0.0-rc9 (2025-03-19)
 ### Bug Fixes
 * **resource/xelon_load_balancer**: change type for assigned devices
@@ -118,14 +116,12 @@
 * **resource/xelon_load_balancer**: allow to assign devices to load balancer
 * **resource/xelon_load_balancer_forwarding_rule**: add new resource to create forwarding rules
 
-<a name="v1.0.0-rc8"></a>
 ## v1.0.0-rc8 (2025-03-14)
 ### Bug Fixes
 * **resource/xelon_load_balancer**: make network_id mandatory
 ### Features
 * **resource/xelon_load_balancer**: use v2 sdk endpoints
 
-<a name="v1.0.0-rc7"></a>
 ## v1.0.0-rc7 (2025-02-13)
 ### Bug Fixes
 * **resource/xelon_network**: make required attributes configurable for LAN and WAN type
@@ -133,7 +129,6 @@
 * **resource/xelon_device**: update required and optional attributes for network config
 * **resource/xelon_network**: use api v2 for create/update WAN networks
 
-<a name="v1.0.0-rc6"></a>
 ## v1.0.0-rc6 (2025-02-11)
 ### Bug Fixes
 * **datasource/xelon_tenant**: do not search by name for current tenant
@@ -143,7 +138,6 @@
 ### Features
 * **datasource/xelon_tenant**: use v2 endpoints for clouds
 
-<a name="v1.0.0-rc5"></a>
 ## v1.0.0-rc5 (2025-02-10)
 ### Bug Fixes
 * **datasource/xelon_network**: fetch missing properties after listing network
@@ -152,21 +146,18 @@
 ### Features
 * **datasource/xelon_cloud**: use v2 endpoints for clouds
 
-<a name="v1.0.0-rc4"></a>
 ## v1.0.0-rc4 (2025-02-09)
 ### Features
 * **resource/xelon_network**: use v2 sdk to create LAN networks
 ### Maintaining
 * **deps**: upgrade hashicorp dependencies to latest versions
 
-<a name="v1.0.0-rc3"></a>
 ## v1.0.0-rc3 (2025-02-07)
 ### Bug Fixes
 * **resource/xelon_device**: relax check for power state and fresh created devices
 ### Features
 * **resource/xelon_device**: add optional fields for device
 
-<a name="v1.0.0-rc2"></a>
 ## v1.0.0-rc2 (2025-02-05)
 ### Bug Fixes
 * **resource/xelon_device**: improve check for powered and ready state
@@ -174,14 +165,12 @@
 ### Documentation
 * **resource/xelon_device**: update documentation for network block
 
-<a name="v1.0.0-rc1"></a>
 ## v1.0.0-rc1 (2025-02-05)
 ### Features
 * **resource/xelon_device**: use xelon-sdk-go v2 endpoint
 ### Maintaining
 * update goreleaser deprecated properties
 
-<a name="v1.0.0-rc0"></a>
 ## v1.0.0-rc0 (2025-02-03)
 ### Bug Fixes
 * resolve panic issue with SDKv2 resource import
@@ -205,7 +194,6 @@
 * **tools**: upgrade terraform-plugin-docs to v0.20.1
 * **tools**: upgrade tools dependencies to latest stable versions
 
-<a name="v0.7.0"></a>
 ## v0.7.0 (2023-03-13)
 ### Code Refactoring
 * standardize logging by resource methods
@@ -222,32 +210,27 @@
 * log info when configuring SDK client
 * replace deprecated GoReleaser options
 
-<a name="v0.6.2"></a>
 ## v0.6.2 (2023-02-24)
 ### Maintaining
 * **deps**: bump golang.org/x/net from 0.6.0 to 0.7.0
 * **deps**: upgrade dependencies
 * **tools**: upgrade tools dependencies
 
-<a name="v0.6.1"></a>
 ## v0.6.1 (2023-01-01)
 ### Documentation
 * generate examples for all resources
 
-<a name="v0.6.0"></a>
 ## v0.6.0 (2022-12-31)
 ### Features
 * **datasource/xelon_cloud**: add new data source for clouds
 ### Maintaining
 * upgrade xelon-sdk-go to v0.12.0
 
-<a name="v0.5.1"></a>
 ## v0.5.1 (2022-12-30)
 ### Maintaining
 * run sweepers in GitHub actions after acceptance tests
 * add sweepers to cleanup leftover infrastructure
 
-<a name="v0.5.0"></a>
 ## v0.5.0 (2022-12-30)
 ### Features
 * **resource/xelon_network**: add new resource for networks
@@ -258,7 +241,6 @@
 * **resource/xelon_ssh_key**: verify if key exists when executing acceptance tests
 * **resource/xelon_ssh_key**: enable acceptance tests
 
-<a name="v0.4.0"></a>
 ## v0.4.0 (2022-12-27)
 ### Features
 * **resource/xelon_persistent_storage**: implement extending storage by update method
@@ -266,13 +248,11 @@
 ### Maintaining
 * upgrade xelon-sdk-go to v0.10.1
 
-<a name="v0.3.0"></a>
 ## v0.3.0 (2022-12-26)
 ### Features
 * add client_id support for config
 * **datasource/xelon_tenant**: add new data source for organizations
 
-<a name="v0.2.0"></a>
 ## v0.2.0 (2022-12-23)
 ### Documentation
 * generate provider documentation with tfplugindocs
@@ -280,7 +260,6 @@
 ### Features
 * **resource/xelon_device**: add new resource for devices
 
-<a name="v0.1.0"></a>
 ## v0.1.0 (2022-12-02)
 ### Features
 * **resource/xelon_ssh_key**: add new resource for ssh keys
