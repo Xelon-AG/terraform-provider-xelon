@@ -15,10 +15,10 @@ jobs:
     timeout-minutes: 5
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Set up Go
-        uses: actions/setup-go@v5
+        uses: actions/setup-go@v6
         with:
           go-version-file: "go.mod"
 
@@ -32,10 +32,10 @@ jobs:
     timeout-minutes: 5
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Set up Go
-        uses: actions/setup-go@v5
+        uses: actions/setup-go@v6
         with:
           go-version-file: "go.mod"
 
@@ -44,7 +44,7 @@ jobs:
           chmod -R 0755 ~/.cache/go-build ~/go/pkg/mod || true
 
       - name: Set up cache
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: |
             ~/.cache/go-build
@@ -100,7 +100,7 @@ jobs:
           chmod -R 0755 ~/.cache/go-build ~/go/pkg/mod || true
 
       - name: Set up cache
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: |
             ~/.cache/go-build
@@ -127,10 +127,10 @@ jobs:
       XELON_TOKEN: ${{ secrets.XELON_TOKEN }}
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Set up Go
-        uses: actions/setup-go@v5
+        uses: actions/setup-go@v6
         with:
           go-version-file: "go.mod"
 
@@ -139,7 +139,7 @@ jobs:
           chmod -R 0755 ~/.cache/go-build ~/go/pkg/mod || true
 
       - name: Set up cache
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: |
             ~/.cache/go-build
@@ -157,10 +157,10 @@ jobs:
     timeout-minutes: 5
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Set up Go
-        uses: actions/setup-go@v5
+        uses: actions/setup-go@v6
         with:
           go-version-file: "go.mod"
 
@@ -169,7 +169,7 @@ jobs:
           chmod -R 0755 ~/.cache/go-build ~/go/pkg/mod || true
 
       - name: Set up cache
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: |
             ~/.cache/go-build
