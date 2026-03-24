@@ -65,6 +65,7 @@ jobs:
   acceptance-tests:
     name: acceptance tests (terraform ${{ matrix.terraform-version }})
     runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request'
     needs: build
     timeout-minutes: 30
     env:
@@ -117,6 +118,7 @@ jobs:
   sweeper:
     name: sweeper cleanup
     runs-on: ubuntu-latest
+    if: always() && github.event_name == 'pull_request'
     needs: acceptance-tests
     timeout-minutes: 15
     env:
