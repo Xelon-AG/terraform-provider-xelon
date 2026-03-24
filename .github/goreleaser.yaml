@@ -10,16 +10,11 @@ announce:
         text:
           type: plain_text
           text: ":tada: New Release: Terraform Provider Xelon {{ .Tag }}"
-      - type: section
-        text:
-          type: mrkdwn
-          text: "{{ .ReleaseURL }}"
       - type: divider
       - type: section
         text:
           type: mrkdwn
-          text: |
-            {{ .ReleaseNotes }}
+          text: "We've have just shipped a new version, bringing new features and important stability improvements. See the <{{ .ReleaseURL }}|release notes> for all the details."
 
 archives:
   - files:
