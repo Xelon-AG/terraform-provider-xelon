@@ -17,9 +17,7 @@ const (
 	deviceStateProvisioning     = "provisioning"
 	deviceStateReadyForBasicUse = "readyForBasicUse"
 	deviceStateReady            = "ready"
-
-	deviceDiskProvisioning = "diskProvisioning"
-	deviceDiskUpdated      = "diskUpdated"
+	deviceStateUpdating         = "updating"
 
 	deviceDiskSnapshotsExist   = "snapshotsExist"
 	deviceDiskSnapshotsMissing = "snapshotsMissing"
@@ -68,30 +66,13 @@ func statusDeviceState(ctx context.Context, client *xelon.Client, deviceID strin
 			deviceState = deviceStateReady
 		case 2:
 			deviceState = deviceStateReadyForBasicUse
+		case 3:
+			deviceState = deviceStateUpdating
 		default:
 			return nil, "", fmt.Errorf("failed to get correct device state: %d", device.State)
 		}
 
 		return device, deviceState, nil
-	}
-}
-
-func statusDeviceDiskUpdated(ctx context.Context, client *xelon.Client, deviceID, diskID string, expectedDiskSize int) retry.StateRefreshFunc {
-	return func() (any, string, error) {
-		device, _, err := client.Devices.Get(ctx, deviceID)
-		if err != nil {
-			return nil, "", err
-		}
-		if device == nil {
-			return nil, "", fmt.Errorf("failed to get device with id: %s", deviceID)
-		}
-
-		for _, storage := range device.Storages {
-			if storage.ID == diskID && storage.Size == expectedDiskSize {
-				return device, deviceDiskUpdated, nil
-			}
-		}
-		return device, deviceDiskProvisioning, nil
 	}
 }
 

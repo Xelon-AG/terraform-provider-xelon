@@ -470,7 +470,7 @@ func (r *deviceResource) Update(ctx context.Context, request resource.UpdateRequ
 		tflog.Debug(ctx, "Updated disk size", map[string]any{"device_id": deviceID, "data": device})
 
 		tflog.Info(ctx, "Waiting for disk size to be updated after extension")
-		err = helper.WaitDeviceDiskSizeUpdated(ctx, r.client, deviceID, diskID, newDiskSize)
+		err = helper.WaitDeviceStateReady(ctx, r.client, deviceID)
 		if err != nil {
 			response.Diagnostics.AddError("Unable to wait for disk size to be updated", err.Error())
 			return
@@ -502,7 +502,7 @@ func (r *deviceResource) Update(ctx context.Context, request resource.UpdateRequ
 		tflog.Debug(ctx, "Updated swap disk size", map[string]any{"device_id": deviceID, "data": device})
 
 		tflog.Info(ctx, "Waiting for swap disk size to be updated after extension")
-		err = helper.WaitDeviceDiskSizeUpdated(ctx, r.client, deviceID, swapDiskID, newSwapDiskSize)
+		err = helper.WaitDeviceStateReady(ctx, r.client, deviceID)
 		if err != nil {
 			response.Diagnostics.AddError("Unable to wait for swap disk size to be updated", err.Error())
 			return
@@ -573,6 +573,15 @@ func (r *deviceResource) Update(ctx context.Context, request resource.UpdateRequ
 				}
 			}
 		}
+
+		// ensure device is in ready state
+		tflog.Info(ctx, "Waiting for device to be ready", map[string]any{"device_id": deviceID})
+		err = helper.WaitDeviceStateReady(ctx, r.client, deviceID)
+		if err != nil {
+			response.Diagnostics.AddError("Unable to wait for device to be ready", err.Error())
+			return
+		}
+		tflog.Info(ctx, "Device is ready", map[string]any{"device_id": deviceID})
 
 		tflog.Debug(ctx, "Getting device with enriched data", map[string]any{"device_id": deviceID})
 		device, _, err := r.client.Devices.Get(ctx, deviceID)

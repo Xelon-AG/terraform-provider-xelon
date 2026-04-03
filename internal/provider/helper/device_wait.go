@@ -44,7 +44,7 @@ func WaitDevicePowerStateOff(ctx context.Context, client *xelon.Client, deviceID
 
 func WaitDeviceStateReady(ctx context.Context, client *xelon.Client, deviceID string) error {
 	stateConf := &retry.StateChangeConf{
-		Pending:    []string{deviceStateProvisioning, deviceStateReadyForBasicUse},
+		Pending:    []string{deviceStateProvisioning, deviceStateReadyForBasicUse, deviceStateUpdating},
 		Target:     []string{deviceStateReady},
 		Timeout:    10 * time.Minute,
 		MinTimeout: 5 * time.Second,
@@ -54,22 +54,6 @@ func WaitDeviceStateReady(ctx context.Context, client *xelon.Client, deviceID st
 
 	if _, err := stateConf.WaitForStateContext(ctx); err != nil {
 		return fmt.Errorf("failed to wait for device (%s) to become ready: %w", deviceID, err)
-	}
-	return nil
-}
-
-func WaitDeviceDiskSizeUpdated(ctx context.Context, client *xelon.Client, deviceID, diskID string, expectedDiskSize int) error {
-	stateConf := &retry.StateChangeConf{
-		Pending:    []string{deviceDiskProvisioning},
-		Target:     []string{deviceDiskUpdated},
-		Timeout:    10 * time.Minute,
-		MinTimeout: 5 * time.Second,
-		Delay:      3 * time.Second,
-		Refresh:    statusDeviceDiskUpdated(ctx, client, deviceID, diskID, expectedDiskSize),
-	}
-
-	if _, err := stateConf.WaitForStateContext(ctx); err != nil {
-		return fmt.Errorf("failed to wait for device disk (%s) to become updated: %w", diskID, err)
 	}
 	return nil
 }
