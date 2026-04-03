@@ -1,4 +1,12 @@
 
+## v1.3.1 (2026-04-03)
+### Bug Fixes
+* **resource/xelon_device**: use new state to track device in-flight operations
+### Maintaining
+* **actions**: bump github actions to latest stable versions
+* **actions**: run acceptance tests only on pull requests
+* **release**: remove ReleaseNotes slack block because of escaping issue
+
 ## v1.3.0 (2026-03-23)
 ### Bug Fixes
 * **resource/xelon_device**: make attributes required depending on user_data
