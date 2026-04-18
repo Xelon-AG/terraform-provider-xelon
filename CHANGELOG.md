@@ -1,4 +1,8 @@
 
+## v1.3.2 (2026-04-16)
+### Bug Fixes
+* **deps**: upgrade xelon-sdk-go to v1.5.1
+
 ## v1.3.1 (2026-04-03)
 ### Bug Fixes
 * **resource/xelon_device**: use new state to track device in-flight operations
