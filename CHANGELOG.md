@@ -1,4 +1,13 @@
 
+## v1.4.0 (2026-05-04)
+### Documentation
+* **resource/xelon_dns_zone**: update documentation
+### Features
+* **resource/xelon_dns_zone**: add new resource to manage dns zones
+### Maintaining
+* **deps**: upgrade hashicorp dependencies to latest stable versions
+* **tools**: upgrade tool dependencies to latest stable versions
+
 ## v1.3.2 (2026-04-16)
 ### Bug Fixes
 * **deps**: upgrade xelon-sdk-go to v1.5.1
