@@ -3,6 +3,7 @@ package provider
 import (
 	"context"
 
+	"github.com/hashicorp/terraform-plugin-framework/attr"
 	"github.com/hashicorp/terraform-plugin-framework/datasource"
 	"github.com/hashicorp/terraform-plugin-framework/datasource/schema"
 	"github.com/hashicorp/terraform-plugin-framework/types"
@@ -25,7 +26,13 @@ type xksClusterVersionsDataSource struct {
 // xksClusterVersionsDataSourceModel maps the  XKS cluster versions datasource schema data.
 type xksClusterVersionsDataSourceModel struct {
 	CloudID  types.String                              `tfsdk:"cloud_id"`
+	Latest   types.Object                              `tfsdk:"latest"` // xksClusterLatestDataSourceModel
 	Versions []kubernetesByTalosVersionDataSourceModel `tfsdk:"versions"`
+}
+
+type xksClusterLatestDataSourceModel struct {
+	TalosVersion      types.String `tfsdk:"talos_version"`
+	KubernetesVersion types.String `tfsdk:"kubernetes_version"`
 }
 
 type kubernetesByTalosVersionDataSourceModel struct {
@@ -51,18 +58,32 @@ The XKS cluster versions data source provides information about available Talos 
 				MarkdownDescription: "The ID of the cloud.",
 				Required:            true,
 			},
+			"latest": schema.SingleNestedAttribute{
+				MarkdownDescription: "The latest Talos version and compatible Kubernetes version.",
+				Computed:            true,
+				Attributes: map[string]schema.Attribute{
+					"kubernetes_version": schema.StringAttribute{
+						MarkdownDescription: "The latest Kubernetes version available for the specific Talos version.",
+						Computed:            true,
+					},
+					"talos_version": schema.StringAttribute{
+						MarkdownDescription: "The latest Talos version used to run Kubernetes cluster.",
+						Computed:            true,
+					},
+				},
+			},
 			"versions": schema.ListNestedAttribute{
 				MarkdownDescription: "The mapping of compatible Talos Linux versions to Kubernetes versions.",
 				Computed:            true,
 				NestedObject: schema.NestedAttributeObject{
 					Attributes: map[string]schema.Attribute{
-						"talos_version": schema.StringAttribute{
-							MarkdownDescription: "The Talos version used to run Kubernetes cluster.",
-							Computed:            true,
-						},
 						"kubernetes_versions": schema.ListAttribute{
 							MarkdownDescription: "The list of Kubernetes versions available for the specific Talos version.",
 							ElementType:         types.StringType,
+							Computed:            true,
+						},
+						"talos_version": schema.StringAttribute{
+							MarkdownDescription: "The Talos version used to run Kubernetes cluster.",
 							Computed:            true,
 						},
 					},
@@ -110,17 +131,41 @@ func (d *xksClusterVersionsDataSource) Read(ctx context.Context, request datasou
 
 	// map response body to attributes
 	var versions []kubernetesByTalosVersionDataSourceModel
+	talosVersions := make([]string, 0, len(versionMapping))
 	for talosVersion, k8sVersions := range versionMapping {
 		// copy to not mutate API response, and then sort newest first
 		k8sVersionsSorted := append([]string(nil), k8sVersions...)
 		helper.SortVersions(k8sVersionsSorted, func(s string) string { return s })
 
+		talosVersions = append(talosVersions, talosVersion)
 		versions = append(versions, kubernetesByTalosVersionDataSourceModel{
 			TalosVersion:       talosVersion,
 			KubernetesVersions: k8sVersionsSorted,
 		})
 	}
 	data.Versions = versions
+
+	// latest pair of talos and corresponding kubernetes version
+	var latest = xksClusterLatestDataSourceModel{}
+	helper.SortVersions(talosVersions, func(s string) string { return s })
+	if len(talosVersions) > 0 {
+		latest.TalosVersion = types.StringValue(talosVersions[0])
+		k8sVersions, ok := versionMapping[talosVersions[0]]
+		if ok {
+			k8sVersionsSorted := append([]string(nil), k8sVersions...)
+			helper.SortVersions(k8sVersionsSorted, func(s string) string { return s })
+			latest.KubernetesVersion = types.StringValue(k8sVersionsSorted[0])
+		}
+	}
+	latestAttributeTypes := map[string]attr.Type{
+		"talos_version":      types.StringType,
+		"kubernetes_version": types.StringType,
+	}
+	data.Latest, diags = types.ObjectValueFrom(ctx, latestAttributeTypes, latest)
+	response.Diagnostics.Append(diags...)
+	if response.Diagnostics.HasError() {
+		return
+	}
 
 	diags = response.State.Set(ctx, &data)
 	response.Diagnostics.Append(diags...)
