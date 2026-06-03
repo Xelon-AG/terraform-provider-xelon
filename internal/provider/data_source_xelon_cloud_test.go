@@ -41,6 +41,6 @@ func TestAccDataSourceXelonCloud(t *testing.T) {
 const testAccDataSourceXelonCloudConfig = `
 data "xelon_cloud" "test" {
   # cloud id from test environment, change if updated
-  id = "c9ab2f0fcfde"
+  id = "e96db9d92ec7"
 }
 `

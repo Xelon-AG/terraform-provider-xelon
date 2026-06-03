@@ -190,7 +190,7 @@ resource "xelon_device" "test" {
   memory         = 2
   password       = "J78q3H"
   swap_disk_size = 1
-  template_id    = "8b65f96cde35" # hardcoded for now
+  template_id    = data.xelon_template.test.id
   tenant_id      = data.xelon_tenant.test.id
 
   networks = [
@@ -202,5 +202,11 @@ resource "xelon_device" "test" {
 }
 
 data "xelon_tenant" "test" {}
+
+data "xelon_template" "test" {
+  cloud_id    = "e96db9d92ec7"
+  name        = "Debian 11"
+  most_recent = true
+}
 `, displayName, hostname, diskSize)
 }

@@ -42,12 +42,13 @@ data "xelon_template" "debian" {
 
 ### Optional
 
+- `cloud_id` (String) The ID of the cloud.
 - `id` (String) The ID of the template.
+- `most_recent` (Boolean) If `true`, the most recent OS template will be returned. If `false` (default), an error will be returned if more than one template matches the filters.
 - `name` (String) The name of the template.
 
 ### Read-Only
 
 - `category` (String) The category of the template.
-- `cloud_id` (String) The ID of the cloud.
 - `description` (String) The template description.
 - `type` (String) The type of the template.
