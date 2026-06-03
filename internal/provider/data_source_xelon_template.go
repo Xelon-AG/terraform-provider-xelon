@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"net/http"
+	"slices"
 
 	"github.com/hashicorp/terraform-plugin-framework/datasource"
 	"github.com/hashicorp/terraform-plugin-framework/datasource/schema"
@@ -29,6 +30,7 @@ type templateDataSourceModel struct {
 	CloudID     types.String `tfsdk:"cloud_id"`
 	Description types.String `tfsdk:"description"`
 	ID          types.String `tfsdk:"id"`
+	MostRecent  types.Bool   `tfsdk:"most_recent"`
 	Name        types.String `tfsdk:"name"`
 	Type        types.String `tfsdk:"type"`
 }
@@ -54,6 +56,7 @@ The template data source provides information about an existing template.
 			"cloud_id": schema.StringAttribute{
 				MarkdownDescription: "The ID of the cloud.",
 				Computed:            true,
+				Optional:            true,
 			},
 			"description": schema.StringAttribute{
 				MarkdownDescription: "The template description.",
@@ -63,6 +66,11 @@ The template data source provides information about an existing template.
 				MarkdownDescription: "The ID of the template.",
 				Computed:            true,
 				Optional:            true,
+			},
+			"most_recent": schema.BoolAttribute{
+				MarkdownDescription: "If `true`, the most recent OS template will be returned. If `false` (default), " +
+					"an error will be returned if more than one template matches the filters.",
+				Optional: true,
 			},
 			"name": schema.StringAttribute{
 				MarkdownDescription: "The name of the template.",
@@ -155,19 +163,48 @@ func (d *templateDataSource) Read(ctx context.Context, request datasource.ReadRe
 		}
 		tflog.Debug(ctx, "Got templates", map[string]any{"data": templates})
 
-		if len(templates) == 0 {
+		var filteredTemplates []xelon.Template
+		// filter out templates for certain cloud
+		if data.CloudID.ValueString() != "" {
+			cloudID := data.CloudID.ValueString()
+			for _, tpl := range templates {
+				if tpl.CloudID == cloudID {
+					filteredTemplates = append(filteredTemplates, tpl)
+				}
+			}
+		} else {
+			filteredTemplates = slices.Clone(templates)
+		}
+
+		if len(filteredTemplates) == 0 {
 			response.Diagnostics.AddError("No search results", "Please refine your search.")
 			return
 		}
-		if len(templates) > 1 {
-			response.Diagnostics.AddError(
-				"Too many search results",
-				fmt.Sprintf("Please refine your search to be more specific. Found %v templates.", len(templates)),
-			)
-			return
+
+		var template xelon.Template
+		if len(filteredTemplates) > 1 {
+			if data.MostRecent.ValueBool() {
+				tflog.Info(ctx, "Finding most recent template", map[string]any{"data": filteredTemplates})
+				slices.SortFunc(filteredTemplates, func(first, second xelon.Template) int {
+					if first.CreatedAt == nil && second.CreatedAt != nil {
+						return 1
+					} else if first.CreatedAt != nil && second.CreatedAt == nil {
+						return -1
+					} else if first.CreatedAt == nil && second.CreatedAt == nil {
+						return 0
+					}
+					return second.CreatedAt.Compare(*first.CreatedAt)
+				})
+			} else {
+				response.Diagnostics.AddError(
+					"Too many search results",
+					fmt.Sprintf("Please refine your search to be more specific. Found %v templates.", len(filteredTemplates)),
+				)
+				return
+			}
 		}
 
-		template := templates[0]
+		template = filteredTemplates[0]
 		// map response body to attributes
 		data.Category = types.StringValue(template.Category)
 		data.CloudID = types.StringValue(template.CloudID)
