@@ -153,6 +153,7 @@ func (p *xelonProvider) Resources(_ context.Context) []func() resource.Resource 
 		NewPersistentStorageResource,
 		NewSSHKeyResource,
 		NewTemplateResource,
+		NewXKSClusterResource,
 	}
 }
 
