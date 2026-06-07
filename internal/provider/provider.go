@@ -130,13 +130,13 @@ func (p *xelonProvider) DataSources(_ context.Context) []func() datasource.DataS
 	return []func() datasource.DataSource{
 		NewCloudDataSource,
 		NewISODataSource,
+		NewKubernetesClusterVersionsDataSource,
 		NewLoadBalancerDataSource,
 		NewNetworkDataSource,
 		NewPersistentStorageDataSource,
 		NewSSHKeyDataSource,
 		NewTemplateDataSource,
 		NewTenantDataSource,
-		NewXKSClusterVersionsDataSource,
 	}
 }
 
