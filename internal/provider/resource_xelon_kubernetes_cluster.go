@@ -42,7 +42,6 @@ type kubernetesClusterResourceModel struct {
 	CloudID           types.String   `tfsdk:"cloud_id"`
 	ControlPlane      types.Object   `tfsdk:"control_plane"` // kubernetesClusterNodeSpecResourceModel
 	ID                types.String   `tfsdk:"id"`
-	KubeConfigRaw     types.String   `tfsdk:"kube_config_raw"`
 	KubernetesVersion types.String   `tfsdk:"kubernetes_version"`
 	LoadBalancer      types.Object   `tfsdk:"load_balancer"` // kubernetesClusterNodeSpecResourceModel
 	Name              types.String   `tfsdk:"name"`
@@ -114,14 +113,6 @@ XKS is a Kubernetes service with a fully managed control plane and high availabi
 			"id": schema.StringAttribute{
 				MarkdownDescription: "The ID of the Kubernetes cluster.",
 				Computed:            true,
-				PlanModifiers: []planmodifier.String{
-					stringplanmodifier.UseStateForUnknown(),
-				},
-			},
-			"kube_config_raw": schema.StringAttribute{
-				MarkdownDescription: "Raw Kubernetes config to be used by kubectl and other compatible tools.",
-				Computed:            true,
-				Sensitive:           true,
 				PlanModifiers: []planmodifier.String{
 					stringplanmodifier.UseStateForUnknown(),
 				},
@@ -309,14 +300,6 @@ func (r *kubernetesClusterResource) Create(ctx context.Context, request resource
 	}
 	tflog.Debug(ctx, "Got Kubernetes load balancer data", map[string]any{"data": controlPlane})
 
-	tflog.Debug(ctx, "Getting kubeconfig", map[string]any{"kubernetes_cluster_id": kubernetesClusterID})
-	kubeConfig, _, err := r.client.Kubernetes.GetKubeConfig(ctx, kubernetesClusterID)
-	if err != nil {
-		response.Diagnostics.AddError("Unable to get kubeconfig", err.Error())
-		return
-	}
-	tflog.Debug(ctx, "Got kubeconfig", map[string]any{"data": kubeConfig})
-
 	// map response body to attributes
 	data.ID = types.StringValue(kubernetesClusterID)
 	data.ControlPlane, diags = flattenControlPlane(ctx, controlPlane)
@@ -326,7 +309,6 @@ func (r *kubernetesClusterResource) Create(ctx context.Context, request resource
 	if response.Diagnostics.HasError() {
 		return
 	}
-	data.KubeConfigRaw = types.StringValue(string(kubeConfig))
 
 	diags = response.State.Set(ctx, &data)
 	response.Diagnostics.Append(diags...)
@@ -367,14 +349,6 @@ func (r *kubernetesClusterResource) Read(ctx context.Context, request resource.R
 	}
 	tflog.Debug(ctx, "Got Kubernetes load balancer data", map[string]any{"data": controlPlane})
 
-	tflog.Debug(ctx, "Getting kubeconfig", map[string]any{"kubernetes_cluster_id": kubernetesClusterID})
-	kubeConfig, _, err := r.client.Kubernetes.GetKubeConfig(ctx, kubernetesClusterID)
-	if err != nil {
-		response.Diagnostics.AddError("Unable to get kubeconfig", err.Error())
-		return
-	}
-	tflog.Debug(ctx, "Got kubeconfig", map[string]any{"data": kubeConfig})
-
 	// map response body to attributes
 	data.ID = types.StringValue(kubernetesClusterID)
 	data.ControlPlane, diags = flattenControlPlane(ctx, controlPlane)
@@ -384,7 +358,6 @@ func (r *kubernetesClusterResource) Read(ctx context.Context, request resource.R
 	if response.Diagnostics.HasError() {
 		return
 	}
-	data.KubeConfigRaw = types.StringValue(string(kubeConfig))
 
 	diags = response.State.Set(ctx, &data)
 	response.Diagnostics.Append(diags...)

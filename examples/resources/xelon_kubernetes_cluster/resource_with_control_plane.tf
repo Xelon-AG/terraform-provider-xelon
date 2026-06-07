@@ -16,10 +16,3 @@ resource "xelon_kubernetes_cluster" "staging" {
 data "xelon_kubernetes_cluster_versions" "staging" {
   cloud_id = "<cloud-id>"
 }
-
-# Run "terraform output -raw kubeconfig > ~/kubeconfig.dms"
-# to persist kubeconfig for your new created cluster
-output "kubeconfig" {
-  value     = xelon_kubernetes_cluster.staging.kube_config_raw
-  sensitive = true
-}
