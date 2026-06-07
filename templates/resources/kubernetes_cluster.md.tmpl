@@ -12,8 +12,12 @@ description: |-
 
 ## Example Usage
 
-### LAN network
+### Minimal example
 
-{{ tffile "examples/resources/xelon_network/resource_lan.tf" }}
+{{ tffile "examples/resources/xelon_kubernetes_cluster/resource_minimal.tf" }}
+
+### With control plane configuration
+
+{{ tffile "examples/resources/xelon_kubernetes_cluster/resource_with_control_plane.tf" }}
 
 {{ .SchemaMarkdown | trimspace }}

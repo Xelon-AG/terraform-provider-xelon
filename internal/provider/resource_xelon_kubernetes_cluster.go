@@ -24,61 +24,56 @@ import (
 )
 
 var (
-	_ resource.Resource              = (*xksClusterResource)(nil)
-	_ resource.ResourceWithConfigure = (*xksClusterResource)(nil)
+	_ resource.Resource              = (*kubernetesClusterResource)(nil)
+	_ resource.ResourceWithConfigure = (*kubernetesClusterResource)(nil)
 )
 
 const (
-	defaultXKSClusterTimeout = 30 * time.Minute
+	defaultKubernetesClusterTimeout = 30 * time.Minute
 )
 
-// xksClusterResource is the XKS cluster resource implementation.
-type xksClusterResource struct {
+// kubernetesClusterResource is the Kubernetes cluster resource implementation.
+type kubernetesClusterResource struct {
 	client *xelon.Client
 }
 
-// xksClusterResourceModel maps the XKS cluster resource schema data.
-type xksClusterResourceModel struct {
+// kubernetesClusterResourceModel maps the Kubernetes cluster resource schema data.
+type kubernetesClusterResourceModel struct {
 	CloudID           types.String   `tfsdk:"cloud_id"`
-	ControlPlane      types.Object   `tfsdk:"control_plane"` // xksClusterControlPlaneResourceModel
+	ControlPlane      types.Object   `tfsdk:"control_plane"` // kubernetesClusterNodeSpecResourceModel
 	ID                types.String   `tfsdk:"id"`
+	KubeConfigRaw     types.String   `tfsdk:"kube_config_raw"`
 	KubernetesVersion types.String   `tfsdk:"kubernetes_version"`
-	LoadBalancer      types.Object   `tfsdk:"load_balancer"` // xksClusterLoadBalancerResourceModel
+	LoadBalancer      types.Object   `tfsdk:"load_balancer"` // kubernetesClusterNodeSpecResourceModel
 	Name              types.String   `tfsdk:"name"`
 	TalosVersion      types.String   `tfsdk:"talos_version"`
 	TenantID          types.String   `tfsdk:"tenant_id"`
 	Timeouts          timeouts.Value `tfsdk:"timeouts"`
 }
 
-type xksClusterControlPlaneResourceModel struct {
+type kubernetesClusterNodeSpecResourceModel struct {
 	CPUCoreCount            types.Int64 `tfsdk:"cpu_core_count"`
 	DiskSize                types.Int64 `tfsdk:"disk_size"`
 	HighAvailabilityEnabled types.Bool  `tfsdk:"high_availability_enabled"`
 	Memory                  types.Int64 `tfsdk:"memory"`
 }
 
-type xksClusterLoadBalancerResourceModel struct {
-	CPUCoreCount            types.Int64 `tfsdk:"cpu_core_count"`
-	DiskSize                types.Int64 `tfsdk:"disk_size"`
-	HighAvailabilityEnabled types.Bool  `tfsdk:"high_availability_enabled"`
-	Memory                  types.Int64 `tfsdk:"memory"`
+func NewKubernetesClusterResource() resource.Resource { return &kubernetesClusterResource{} }
+
+func (r *kubernetesClusterResource) Metadata(_ context.Context, _ resource.MetadataRequest, response *resource.MetadataResponse) {
+	response.TypeName = "xelon_kubernetes_cluster"
 }
 
-func NewXKSClusterResource() resource.Resource { return &xksClusterResource{} }
-
-func (r *xksClusterResource) Metadata(_ context.Context, _ resource.MetadataRequest, response *resource.MetadataResponse) {
-	response.TypeName = "xelon_xks_cluster"
-}
-
-func (r *xksClusterResource) Schema(ctx context.Context, _ resource.SchemaRequest, response *resource.SchemaResponse) {
+func (r *kubernetesClusterResource) Schema(ctx context.Context, _ resource.SchemaRequest, response *resource.SchemaResponse) {
 	response.Schema = schema.Schema{
 		MarkdownDescription: `
-The XKS cluster resource allows you to manage Xelon Kubernetes cluster.
+The kubernetes cluster resource allows you to manage Xelon Kubernetes (XKS) cluster.
+XKS is a Kubernetes service with a fully managed control plane and high availability.
 `,
 		Version: 0,
 		Attributes: map[string]schema.Attribute{
 			"cloud_id": schema.StringAttribute{
-				MarkdownDescription: "The ID of the cloud in which the XKS cluster will be provisioned.",
+				MarkdownDescription: "The ID of the cloud in which the Kubernetes cluster will be provisioned.",
 				Required:            true,
 			},
 			"control_plane": schema.SingleNestedAttribute{
@@ -117,14 +112,22 @@ The XKS cluster resource allows you to manage Xelon Kubernetes cluster.
 				},
 			},
 			"id": schema.StringAttribute{
-				MarkdownDescription: "The ID of the XKS cluster.",
+				MarkdownDescription: "The ID of the Kubernetes cluster.",
 				Computed:            true,
 				PlanModifiers: []planmodifier.String{
 					stringplanmodifier.UseStateForUnknown(),
 				},
 			},
+			"kube_config_raw": schema.StringAttribute{
+				MarkdownDescription: "Raw Kubernetes config to be used by kubectl and other compatible tools.",
+				Computed:            true,
+				Sensitive:           true,
+				PlanModifiers: []planmodifier.String{
+					stringplanmodifier.UseStateForUnknown(),
+				},
+			},
 			"kubernetes_version": schema.StringAttribute{
-				MarkdownDescription: "Desired Kubernetes version for the XKS cluster.",
+				MarkdownDescription: "Desired Kubernetes version for the cluster.",
 				Required:            true,
 			},
 			"load_balancer": schema.SingleNestedAttribute{
@@ -163,15 +166,15 @@ The XKS cluster resource allows you to manage Xelon Kubernetes cluster.
 				},
 			},
 			"name": schema.StringAttribute{
-				MarkdownDescription: "The name of the XKS cluster.",
+				MarkdownDescription: "The name of the Kubernetes cluster.",
 				Required:            true,
 			},
 			"talos_version": schema.StringAttribute{
-				MarkdownDescription: "Desired Talos version for the XKS cluster.",
+				MarkdownDescription: "Desired Talos version for the Kubernetes cluster.",
 				Required:            true,
 			},
 			"tenant_id": schema.StringAttribute{
-				MarkdownDescription: "The tenant ID of the XKS cluster.",
+				MarkdownDescription: "The tenant ID of the Kubernetes cluster.",
 				Required:            true,
 			},
 			"timeouts": timeouts.Attributes(ctx, timeouts.Opts{
@@ -182,7 +185,7 @@ The XKS cluster resource allows you to manage Xelon Kubernetes cluster.
 	}
 }
 
-func (r *xksClusterResource) Configure(_ context.Context, request resource.ConfigureRequest, response *resource.ConfigureResponse) {
+func (r *kubernetesClusterResource) Configure(_ context.Context, request resource.ConfigureRequest, response *resource.ConfigureResponse) {
 	if request.ProviderData == nil {
 		return
 	}
@@ -199,8 +202,8 @@ func (r *xksClusterResource) Configure(_ context.Context, request resource.Confi
 	r.client = client
 }
 
-func (r *xksClusterResource) Create(ctx context.Context, request resource.CreateRequest, response *resource.CreateResponse) {
-	var data xksClusterResourceModel
+func (r *kubernetesClusterResource) Create(ctx context.Context, request resource.CreateRequest, response *resource.CreateResponse) {
+	var data kubernetesClusterResourceModel
 
 	// read plan data into the model
 	diags := request.Plan.Get(ctx, &data)
@@ -210,7 +213,7 @@ func (r *xksClusterResource) Create(ctx context.Context, request resource.Create
 	}
 
 	// configure timeout
-	createTimeout, diags := data.Timeouts.Create(ctx, defaultXKSClusterTimeout)
+	createTimeout, diags := data.Timeouts.Create(ctx, defaultKubernetesClusterTimeout)
 	response.Diagnostics.Append(diags...)
 	if response.Diagnostics.HasError() {
 		return
@@ -231,87 +234,106 @@ func (r *xksClusterResource) Create(ctx context.Context, request resource.Create
 	}
 
 	// handle optional defaults for control plane
-	var controlPlaneData xksClusterControlPlaneResourceModel
-	response.Diagnostics.Append(data.ControlPlane.As(ctx, &controlPlaneData, basetypes.ObjectAsOptions{})...)
+	var controlPlaneModel kubernetesClusterNodeSpecResourceModel
+	response.Diagnostics.Append(data.ControlPlane.As(ctx, &controlPlaneModel, basetypes.ObjectAsOptions{})...)
 	if response.Diagnostics.HasError() {
 		return
 	}
-	createRequest.ControlPlaneCPUCores = int(controlPlaneData.CPUCoreCount.ValueInt64())
-	createRequest.ControlPlaneDiskSize = int(controlPlaneData.DiskSize.ValueInt64())
-	createRequest.ControlPlaneRAM = int(controlPlaneData.Memory.ValueInt64())
-	createRequest.ControlPlaneCPUCores = int(controlPlaneData.CPUCoreCount.ValueInt64())
-	if controlPlaneData.HighAvailabilityEnabled.ValueBool() {
+	createRequest.ControlPlaneCPUCores = int(controlPlaneModel.CPUCoreCount.ValueInt64())
+	createRequest.ControlPlaneDiskSize = int(controlPlaneModel.DiskSize.ValueInt64())
+	createRequest.ControlPlaneRAM = int(controlPlaneModel.Memory.ValueInt64())
+	createRequest.ControlPlaneCPUCores = int(controlPlaneModel.CPUCoreCount.ValueInt64())
+	if controlPlaneModel.HighAvailabilityEnabled.ValueBool() {
 		createRequest.ControlPlaneType = "production"
 	} else {
 		createRequest.ControlPlaneType = "test"
 	}
 
 	// load balancer configuration
-	var loadBalancer xksClusterLoadBalancerResourceModel
-	response.Diagnostics.Append(data.LoadBalancer.As(ctx, &loadBalancer, basetypes.ObjectAsOptions{})...)
+	var loadBalancerModel kubernetesClusterNodeSpecResourceModel
+	response.Diagnostics.Append(data.LoadBalancer.As(ctx, &loadBalancerModel, basetypes.ObjectAsOptions{})...)
 	if response.Diagnostics.HasError() {
 		return
 	}
-	createRequest.LoadBalancerCPUCores = int(loadBalancer.CPUCoreCount.ValueInt64())
-	createRequest.LoadBalancerDiskSize = int(loadBalancer.DiskSize.ValueInt64())
-	createRequest.LoadBalancerRAM = int(loadBalancer.Memory.ValueInt64())
-	createRequest.LoadBalancerCPUCores = int(loadBalancer.CPUCoreCount.ValueInt64())
-	if loadBalancer.HighAvailabilityEnabled.ValueBool() {
+	createRequest.LoadBalancerCPUCores = int(loadBalancerModel.CPUCoreCount.ValueInt64())
+	createRequest.LoadBalancerDiskSize = int(loadBalancerModel.DiskSize.ValueInt64())
+	createRequest.LoadBalancerRAM = int(loadBalancerModel.Memory.ValueInt64())
+	createRequest.LoadBalancerCPUCores = int(loadBalancerModel.CPUCoreCount.ValueInt64())
+	if loadBalancerModel.HighAvailabilityEnabled.ValueBool() {
 		createRequest.LoadBalancerType = "production"
 	} else {
 		createRequest.LoadBalancerType = "test"
 	}
 
-	tflog.Debug(ctx, "Creating XKS cluster", map[string]any{"payload": createRequest})
-	createdXKSCluster, _, err := r.client.Kubernetes.Create(ctx, createRequest)
+	tflog.Debug(ctx, "Creating Kubernetes cluster", map[string]any{"payload": createRequest})
+	createdKubernetesCluster, _, err := r.client.Kubernetes.Create(ctx, createRequest)
 	if err != nil {
-		response.Diagnostics.AddError("Unable to create XKS cluster", err.Error())
+		response.Diagnostics.AddError("Unable to create Kubernetes cluster", err.Error())
 		return
 	}
-	tflog.Debug(ctx, "Created XKS cluster", map[string]any{"data": createdXKSCluster})
+	tflog.Debug(ctx, "Created Kubernetes cluster", map[string]any{"data": createdKubernetesCluster})
 
-	kubernetesClusterID := createdXKSCluster.ID
+	kubernetesClusterID := createdKubernetesCluster.ID
 
-	tflog.Info(ctx, "Waiting for XKS cluster to be ready", map[string]any{"kubernetes_cluster_id": kubernetesClusterID})
-	err = helper.WaitXKSClusterStatusReady(ctx, r.client, kubernetesClusterID, createTimeout)
-	if err != nil {
-		// set id to state that the resource will be marked as tainted
-		response.Diagnostics.Append(response.State.SetAttribute(ctx, path.Root("id"), kubernetesClusterID)...)
-		response.Diagnostics.AddError("Unable to wait for XKS cluster to be ready", err.Error())
-		return
-	}
-
-	tflog.Info(ctx, "Waiting for XKS cluster to be healthy", map[string]any{"kubernetes_cluster_id": kubernetesClusterID})
-	err = helper.WaitXKSClusterControlPlaneStatusHealthy(ctx, r.client, kubernetesClusterID, createTimeout)
+	tflog.Info(ctx, "Waiting for Kubernetes cluster to be ready", map[string]any{"kubernetes_cluster_id": kubernetesClusterID})
+	err = helper.WaitKubernetesClusterStatusReady(ctx, r.client, kubernetesClusterID, createTimeout)
 	if err != nil {
 		// set id to state that the resource will be marked as tainted
 		response.Diagnostics.Append(response.State.SetAttribute(ctx, path.Root("id"), kubernetesClusterID)...)
-		response.Diagnostics.AddError("Unable to wait for XKS cluster to be healthy", err.Error())
+		response.Diagnostics.AddError("Unable to wait for Kubernetes cluster to be ready", err.Error())
 		return
 	}
 
-	tflog.Debug(ctx, "Getting XKS control plane data", map[string]any{"kubernetes_cluster_id": kubernetesClusterID})
+	tflog.Info(ctx, "Waiting for Kubernetes cluster to be healthy", map[string]any{"kubernetes_cluster_id": kubernetesClusterID})
+	err = helper.WaitKubernetesClusterControlPlaneStatusHealthy(ctx, r.client, kubernetesClusterID, createTimeout)
+	if err != nil {
+		// set id to state that the resource will be marked as tainted
+		response.Diagnostics.Append(response.State.SetAttribute(ctx, path.Root("id"), kubernetesClusterID)...)
+		response.Diagnostics.AddError("Unable to wait for Kubernetes cluster to be healthy", err.Error())
+		return
+	}
+
+	tflog.Debug(ctx, "Getting Kubernetes control plane data", map[string]any{"kubernetes_cluster_id": kubernetesClusterID})
 	controlPlane, _, err := r.client.Kubernetes.ListControlPlane(ctx, kubernetesClusterID)
 	if err != nil {
-		response.Diagnostics.AddError("Unable to get XKS cluster control plane", err.Error())
+		response.Diagnostics.AddError("Unable to get Kubernetes cluster control plane", err.Error())
 		return
 	}
-	tflog.Debug(ctx, "Got XKS control plane data", map[string]any{"data": controlPlane})
+	tflog.Debug(ctx, "Got Kubernetes control plane data", map[string]any{"data": controlPlane})
+
+	tflog.Debug(ctx, "Getting Kubernetes load balancer data", map[string]any{"kubernetes_cluster_id": kubernetesClusterID})
+	loadBalancer, _, err := r.client.Kubernetes.ListLoadBalancer(ctx, kubernetesClusterID)
+	if err != nil {
+		response.Diagnostics.AddError("Unable to get Kubernetes cluster load balancer", err.Error())
+		return
+	}
+	tflog.Debug(ctx, "Got Kubernetes load balancer data", map[string]any{"data": controlPlane})
+
+	tflog.Debug(ctx, "Getting kubeconfig", map[string]any{"kubernetes_cluster_id": kubernetesClusterID})
+	kubeConfig, _, err := r.client.Kubernetes.GetKubeConfig(ctx, kubernetesClusterID)
+	if err != nil {
+		response.Diagnostics.AddError("Unable to get kubeconfig", err.Error())
+		return
+	}
+	tflog.Debug(ctx, "Got kubeconfig", map[string]any{"data": kubeConfig})
 
 	// map response body to attributes
+	data.ID = types.StringValue(kubernetesClusterID)
 	data.ControlPlane, diags = flattenControlPlane(ctx, controlPlane)
+	response.Diagnostics.Append(diags...)
+	data.LoadBalancer, diags = flattenLoadBalancer(ctx, loadBalancer)
 	response.Diagnostics.Append(diags...)
 	if response.Diagnostics.HasError() {
 		return
 	}
-	data.ID = types.StringValue(kubernetesClusterID)
+	data.KubeConfigRaw = types.StringValue(string(kubeConfig))
 
 	diags = response.State.Set(ctx, &data)
 	response.Diagnostics.Append(diags...)
 }
 
-func (r *xksClusterResource) Read(ctx context.Context, request resource.ReadRequest, response *resource.ReadResponse) {
-	var data xksClusterResourceModel
+func (r *kubernetesClusterResource) Read(ctx context.Context, request resource.ReadRequest, response *resource.ReadResponse) {
+	var data kubernetesClusterResourceModel
 
 	// read state data into the model
 	diags := request.State.Get(ctx, &data)
@@ -321,40 +343,59 @@ func (r *xksClusterResource) Read(ctx context.Context, request resource.ReadRequ
 	}
 
 	kubernetesClusterID := data.ID.ValueString()
-	tflog.Debug(ctx, "Getting XKS cluster", map[string]any{"kubernetes_cluster_id": kubernetesClusterID})
+	tflog.Debug(ctx, "Getting Kubernetes cluster", map[string]any{"kubernetes_cluster_id": kubernetesClusterID})
 	kubernetesCluster, _, err := r.client.Kubernetes.Get(ctx, kubernetesClusterID)
 	if err != nil {
-		response.Diagnostics.AddError("Unable to get XKS cluster", err.Error())
+		response.Diagnostics.AddError("Unable to get Kubernetes cluster", err.Error())
 		return
 	}
-	tflog.Debug(ctx, "Got XKS cluster", map[string]any{"data": kubernetesCluster})
+	tflog.Debug(ctx, "Got Kubernetes cluster", map[string]any{"data": kubernetesCluster})
 
-	tflog.Debug(ctx, "Getting XKS control plane data", map[string]any{"kubernetes_cluster_id": kubernetesClusterID})
+	tflog.Debug(ctx, "Getting Kubernetes control plane data", map[string]any{"kubernetes_cluster_id": kubernetesClusterID})
 	controlPlane, _, err := r.client.Kubernetes.ListControlPlane(ctx, kubernetesClusterID)
 	if err != nil {
-		response.Diagnostics.AddError("Unable to get XKS cluster control plane", err.Error())
+		response.Diagnostics.AddError("Unable to get Kubernetes cluster control plane", err.Error())
 		return
 	}
-	tflog.Debug(ctx, "Got XKS control plane data", map[string]any{"data": controlPlane})
+	tflog.Debug(ctx, "Got Kubernetes control plane data", map[string]any{"data": controlPlane})
+
+	tflog.Debug(ctx, "Getting Kubernetes load balancer data", map[string]any{"kubernetes_cluster_id": kubernetesClusterID})
+	loadBalancer, _, err := r.client.Kubernetes.ListLoadBalancer(ctx, kubernetesClusterID)
+	if err != nil {
+		response.Diagnostics.AddError("Unable to get Kubernetes cluster load balancer", err.Error())
+		return
+	}
+	tflog.Debug(ctx, "Got Kubernetes load balancer data", map[string]any{"data": controlPlane})
+
+	tflog.Debug(ctx, "Getting kubeconfig", map[string]any{"kubernetes_cluster_id": kubernetesClusterID})
+	kubeConfig, _, err := r.client.Kubernetes.GetKubeConfig(ctx, kubernetesClusterID)
+	if err != nil {
+		response.Diagnostics.AddError("Unable to get kubeconfig", err.Error())
+		return
+	}
+	tflog.Debug(ctx, "Got kubeconfig", map[string]any{"data": kubeConfig})
 
 	// map response body to attributes
+	data.ID = types.StringValue(kubernetesClusterID)
 	data.ControlPlane, diags = flattenControlPlane(ctx, controlPlane)
+	response.Diagnostics.Append(diags...)
+	data.LoadBalancer, diags = flattenLoadBalancer(ctx, loadBalancer)
 	response.Diagnostics.Append(diags...)
 	if response.Diagnostics.HasError() {
 		return
 	}
-	data.ID = types.StringValue(kubernetesClusterID)
+	data.KubeConfigRaw = types.StringValue(string(kubeConfig))
 
 	diags = response.State.Set(ctx, &data)
 	response.Diagnostics.Append(diags...)
 }
 
-func (r *xksClusterResource) Update(ctx context.Context, _ resource.UpdateRequest, _ *resource.UpdateResponse) {
+func (r *kubernetesClusterResource) Update(ctx context.Context, _ resource.UpdateRequest, _ *resource.UpdateResponse) {
 	tflog.Info(ctx, "Update is not implemented yet")
 }
 
-func (r *xksClusterResource) Delete(ctx context.Context, request resource.DeleteRequest, response *resource.DeleteResponse) {
-	var data xksClusterResourceModel
+func (r *kubernetesClusterResource) Delete(ctx context.Context, request resource.DeleteRequest, response *resource.DeleteResponse) {
+	var data kubernetesClusterResourceModel
 
 	// read state data into the model
 	diags := request.State.Get(ctx, &data)
@@ -364,13 +405,13 @@ func (r *xksClusterResource) Delete(ctx context.Context, request resource.Delete
 	}
 
 	kubernetesClusterID := data.ID.ValueString()
-	tflog.Debug(ctx, "Deleting XKS cluster", map[string]any{"kubernetes_cluster_id": kubernetesClusterID})
+	tflog.Debug(ctx, "Deleting Kubernetes cluster", map[string]any{"kubernetes_cluster_id": kubernetesClusterID})
 	_, err := r.client.Kubernetes.Delete(ctx, kubernetesClusterID)
 	if err != nil {
-		response.Diagnostics.AddError("Unable to delete XKS cluster", err.Error())
+		response.Diagnostics.AddError("Unable to delete Kubernetes cluster", err.Error())
 		return
 	}
-	tflog.Debug(ctx, "Deleted XKS cluster", map[string]any{"kubernetes_cluster_id": kubernetesClusterID})
+	tflog.Debug(ctx, "Deleted Kubernetes cluster", map[string]any{"kubernetes_cluster_id": kubernetesClusterID})
 }
 
 func nodeSpecAttributeTypes() map[string]attr.Type {
@@ -393,10 +434,20 @@ func nodeSpecDefaultValues() map[string]attr.Value {
 
 func flattenControlPlane(ctx context.Context, controlPlane *xelon.KubernetesClusterControlPlane) (types.Object, diag.Diagnostics) {
 	highAvailabilityEnabled := len(controlPlane.Nodes) > 1
-	return types.ObjectValueFrom(ctx, nodeSpecAttributeTypes(), xksClusterControlPlaneResourceModel{
+	return types.ObjectValueFrom(ctx, nodeSpecAttributeTypes(), kubernetesClusterNodeSpecResourceModel{
 		CPUCoreCount:            types.Int64Value(int64(controlPlane.CPUCores)),
 		DiskSize:                types.Int64Value(int64(controlPlane.DiskSize)),
 		HighAvailabilityEnabled: types.BoolValue(highAvailabilityEnabled),
 		Memory:                  types.Int64Value(int64(controlPlane.RAM)),
+	})
+}
+
+func flattenLoadBalancer(ctx context.Context, loadBalancer *xelon.KubernetesClusterLoadBalancer) (types.Object, diag.Diagnostics) {
+	highAvailabilityEnabled := len(loadBalancer.Instances) > 1
+	return types.ObjectValueFrom(ctx, nodeSpecAttributeTypes(), kubernetesClusterNodeSpecResourceModel{
+		CPUCoreCount:            types.Int64Value(int64(loadBalancer.CPUCores)),
+		DiskSize:                types.Int64Value(int64(loadBalancer.DiskSize)),
+		HighAvailabilityEnabled: types.BoolValue(highAvailabilityEnabled),
+		Memory:                  types.Int64Value(int64(loadBalancer.RAM)),
 	})
 }

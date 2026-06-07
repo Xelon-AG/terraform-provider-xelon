@@ -11,20 +11,20 @@ import (
 )
 
 const (
-	xksClusterStatusProvisioning             = "provisioning"
-	xksClusterStatusReady                    = "ready"
-	xksClusterStatusControlPlaneHealthy      = "healthy"
-	xksClusterStatusControlPlaneProvisioning = "provisioning"
+	kubernetesClusterStatusProvisioning             = "provisioning"
+	kubernetesClusterStatusReady                    = "ready"
+	kubernetesClusterStatusControlPlaneHealthy      = "healthy"
+	kubernetesClusterStatusControlPlaneProvisioning = "provisioning"
 )
 
-func WaitXKSClusterStatusReady(ctx context.Context, client *xelon.Client, kubernetesClusterID string, timeout time.Duration) error {
+func WaitKubernetesClusterStatusReady(ctx context.Context, client *xelon.Client, kubernetesClusterID string, timeout time.Duration) error {
 	stateConf := &retry.StateChangeConf{
-		Pending:    []string{xksClusterStatusProvisioning},
-		Target:     []string{xksClusterStatusReady},
+		Pending:    []string{kubernetesClusterStatusProvisioning},
+		Target:     []string{kubernetesClusterStatusReady},
 		Timeout:    timeout,
 		MinTimeout: 10 * time.Second,
 		Delay:      5 * time.Second,
-		Refresh:    statusXKSClusterStatus(ctx, client, kubernetesClusterID),
+		Refresh:    statusKubernetesClusterStatus(ctx, client, kubernetesClusterID),
 	}
 	if _, err := stateConf.WaitForStateContext(ctx); err != nil {
 		return fmt.Errorf("failed to wait for kubernetes cluster (%s) to become ready: %w", kubernetesClusterID, err)
@@ -32,7 +32,7 @@ func WaitXKSClusterStatusReady(ctx context.Context, client *xelon.Client, kubern
 	return nil
 }
 
-func statusXKSClusterStatus(ctx context.Context, client *xelon.Client, kubernetesClusterID string) retry.StateRefreshFunc {
+func statusKubernetesClusterStatus(ctx context.Context, client *xelon.Client, kubernetesClusterID string) retry.StateRefreshFunc {
 	return func() (any, string, error) {
 		kubernetesCluster, _, err := client.Kubernetes.Get(ctx, kubernetesClusterID)
 		if err != nil {
@@ -44,23 +44,23 @@ func statusXKSClusterStatus(ctx context.Context, client *xelon.Client, kubernete
 
 		switch kubernetesCluster.Status {
 		case "Ready":
-			return kubernetesCluster, xksClusterStatusReady, nil
+			return kubernetesCluster, kubernetesClusterStatusReady, nil
 		case "Deleting", "Deleted", "Error":
 			return nil, "", fmt.Errorf("kubernetes cluster %s entered terminal state %q while waiting for ready", kubernetesClusterID, kubernetesCluster.Status)
 		default:
-			return kubernetesCluster, xksClusterStatusProvisioning, nil
+			return kubernetesCluster, kubernetesClusterStatusProvisioning, nil
 		}
 	}
 }
 
-func WaitXKSClusterControlPlaneStatusHealthy(ctx context.Context, client *xelon.Client, kubernetesClusterID string, timeout time.Duration) error {
+func WaitKubernetesClusterControlPlaneStatusHealthy(ctx context.Context, client *xelon.Client, kubernetesClusterID string, timeout time.Duration) error {
 	stateConf := &retry.StateChangeConf{
-		Pending:    []string{xksClusterStatusControlPlaneProvisioning},
-		Target:     []string{xksClusterStatusControlPlaneHealthy},
+		Pending:    []string{kubernetesClusterStatusControlPlaneProvisioning},
+		Target:     []string{kubernetesClusterStatusControlPlaneHealthy},
 		Timeout:    timeout,
 		MinTimeout: 10 * time.Second,
 		Delay:      5 * time.Second,
-		Refresh:    statusXKSClusterControlPlaneStateStatus(ctx, client, kubernetesClusterID),
+		Refresh:    statusKubernetesClusterControlPlaneStateStatus(ctx, client, kubernetesClusterID),
 	}
 	if _, err := stateConf.WaitForStateContext(ctx); err != nil {
 		return fmt.Errorf("failed to wait for kubernetes cluster (%s) to become healthy: %w", kubernetesClusterID, err)
@@ -68,7 +68,7 @@ func WaitXKSClusterControlPlaneStatusHealthy(ctx context.Context, client *xelon.
 	return nil
 }
 
-func statusXKSClusterControlPlaneStateStatus(ctx context.Context, client *xelon.Client, kubernetesClusterID string) retry.StateRefreshFunc {
+func statusKubernetesClusterControlPlaneStateStatus(ctx context.Context, client *xelon.Client, kubernetesClusterID string) retry.StateRefreshFunc {
 	return func() (any, string, error) {
 		kubernetesCluster, _, err := client.Kubernetes.Get(ctx, kubernetesClusterID)
 		if err != nil {
@@ -82,8 +82,8 @@ func statusXKSClusterControlPlaneStateStatus(ctx context.Context, client *xelon.
 		}
 
 		if kubernetesCluster.Health.Status == "healthy" {
-			return kubernetesCluster, xksClusterStatusControlPlaneHealthy, nil
+			return kubernetesCluster, kubernetesClusterStatusControlPlaneHealthy, nil
 		}
-		return kubernetesCluster, xksClusterStatusControlPlaneProvisioning, nil
+		return kubernetesCluster, kubernetesClusterStatusControlPlaneProvisioning, nil
 	}
 }

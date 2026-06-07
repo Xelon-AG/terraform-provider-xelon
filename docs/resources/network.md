@@ -3,7 +3,7 @@
 page_title: "xelon_network Resource - terraform-provider-xelon"
 subcategory: ""
 description: |-
-    The network resource allows you to manage Xelon networks.
+  The network resource allows you to manage Xelon networks.
 ---
 
 # xelon_network (Resource)
