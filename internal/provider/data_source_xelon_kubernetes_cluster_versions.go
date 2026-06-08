@@ -14,23 +14,23 @@ import (
 )
 
 var (
-	_ datasource.DataSource              = (*xksClusterVersionsDataSource)(nil)
-	_ datasource.DataSourceWithConfigure = (*xksClusterVersionsDataSource)(nil)
+	_ datasource.DataSource              = (*kubernetesClusterVersionsDataSource)(nil)
+	_ datasource.DataSourceWithConfigure = (*kubernetesClusterVersionsDataSource)(nil)
 )
 
-// xksClusterVersionsDataSource is the XKS cluster versions data source implementation.
-type xksClusterVersionsDataSource struct {
+// kubernetesClusterVersionsDataSource is the Kubernetes cluster versions data source implementation.
+type kubernetesClusterVersionsDataSource struct {
 	client *xelon.Client
 }
 
-// xksClusterVersionsDataSourceModel maps the  XKS cluster versions datasource schema data.
-type xksClusterVersionsDataSourceModel struct {
+// kubernetesClusterVersionsDataSourceModel maps the Kubernetes cluster versions datasource schema data.
+type kubernetesClusterVersionsDataSourceModel struct {
 	CloudID  types.String                              `tfsdk:"cloud_id"`
-	Latest   types.Object                              `tfsdk:"latest"` // xksClusterLatestDataSourceModel
+	Latest   types.Object                              `tfsdk:"latest"` // kubernetesClusterLatestDataSourceModel
 	Versions []kubernetesByTalosVersionDataSourceModel `tfsdk:"versions"`
 }
 
-type xksClusterLatestDataSourceModel struct {
+type kubernetesClusterLatestDataSourceModel struct {
 	TalosVersion      types.String `tfsdk:"talos_version"`
 	KubernetesVersion types.String `tfsdk:"kubernetes_version"`
 }
@@ -40,18 +40,18 @@ type kubernetesByTalosVersionDataSourceModel struct {
 	KubernetesVersions []string `tfsdk:"kubernetes_versions"`
 }
 
-func NewXKSClusterVersionsDataSource() datasource.DataSource {
-	return &xksClusterVersionsDataSource{}
+func NewKubernetesClusterVersionsDataSource() datasource.DataSource {
+	return &kubernetesClusterVersionsDataSource{}
 }
 
-func (d *xksClusterVersionsDataSource) Metadata(_ context.Context, _ datasource.MetadataRequest, response *datasource.MetadataResponse) {
-	response.TypeName = "xelon_xks_cluster_versions"
+func (d *kubernetesClusterVersionsDataSource) Metadata(_ context.Context, _ datasource.MetadataRequest, response *datasource.MetadataResponse) {
+	response.TypeName = "xelon_kubernetes_cluster_versions"
 }
 
-func (d *xksClusterVersionsDataSource) Schema(_ context.Context, _ datasource.SchemaRequest, response *datasource.SchemaResponse) {
+func (d *kubernetesClusterVersionsDataSource) Schema(_ context.Context, _ datasource.SchemaRequest, response *datasource.SchemaResponse) {
 	response.Schema = schema.Schema{
 		MarkdownDescription: `
-The XKS cluster versions data source provides information about available Talos and Kubernetes versions.
+The Kubernetes cluster versions data source provides information about available Talos and Kubernetes versions.
 `,
 		Attributes: map[string]schema.Attribute{
 			"cloud_id": schema.StringAttribute{
@@ -93,7 +93,7 @@ The XKS cluster versions data source provides information about available Talos 
 	}
 }
 
-func (d *xksClusterVersionsDataSource) Configure(_ context.Context, request datasource.ConfigureRequest, response *datasource.ConfigureResponse) {
+func (d *kubernetesClusterVersionsDataSource) Configure(_ context.Context, request datasource.ConfigureRequest, response *datasource.ConfigureResponse) {
 	if request.ProviderData == nil {
 		return
 	}
@@ -110,8 +110,8 @@ func (d *xksClusterVersionsDataSource) Configure(_ context.Context, request data
 	d.client = client
 }
 
-func (d *xksClusterVersionsDataSource) Read(ctx context.Context, request datasource.ReadRequest, response *datasource.ReadResponse) {
-	var data xksClusterVersionsDataSourceModel
+func (d *kubernetesClusterVersionsDataSource) Read(ctx context.Context, request datasource.ReadRequest, response *datasource.ReadResponse) {
+	var data kubernetesClusterVersionsDataSourceModel
 
 	diags := request.Config.Get(ctx, &data)
 	response.Diagnostics.Append(diags...)
@@ -146,7 +146,7 @@ func (d *xksClusterVersionsDataSource) Read(ctx context.Context, request datasou
 	data.Versions = versions
 
 	// latest pair of talos and corresponding kubernetes version
-	var latest = xksClusterLatestDataSourceModel{}
+	var latest = kubernetesClusterLatestDataSourceModel{}
 	helper.SortVersions(talosVersions, func(s string) string { return s })
 	if len(talosVersions) > 0 {
 		latest.TalosVersion = types.StringValue(talosVersions[0])

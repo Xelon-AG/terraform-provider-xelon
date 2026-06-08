@@ -12,11 +12,12 @@ description: |-
 
 ## Example Usage
 
-### Default
+### Minimal example
 
-{{ tffile "examples/data-sources/xelon_xks_cluster_versions/data-source_default.tf" }}
+{{ tffile "examples/resources/xelon_kubernetes_cluster/resource_minimal.tf" }}
 
--> Leverage the `latest` attribute for automated version management in XKS clusters. This attribute resolves to the
-latest available Talos and Kubernetes versions at deployment time, simplifying maintenance and ensuring compatibility.
+### With control plane configuration
+
+{{ tffile "examples/resources/xelon_kubernetes_cluster/resource_with_control_plane.tf" }}
 
 {{ .SchemaMarkdown | trimspace }}

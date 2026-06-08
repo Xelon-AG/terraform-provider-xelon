@@ -1,4 +1,4 @@
-data "xelon_xks_cluster_versions" "hcp" {
+data "xelon_kubernetes_cluster_versions" "hcp" {
   cloud_id = data.xelon_cloud.hcp.id
 }
 
