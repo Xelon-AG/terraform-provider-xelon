@@ -39,7 +39,7 @@ func statusKubernetesClusterStatus(ctx context.Context, client *xelon.Client, ku
 			return nil, "", err
 		}
 		if kubernetesCluster == nil {
-			return nil, "", fmt.Errorf("failed to kubernetes cluster with id: %s", kubernetesClusterID)
+			return nil, "", fmt.Errorf("failed get to kubernetes cluster with id: %s", kubernetesClusterID)
 		}
 
 		switch kubernetesCluster.Status {
@@ -75,7 +75,7 @@ func statusKubernetesClusterControlPlaneStateStatus(ctx context.Context, client 
 			return nil, "", err
 		}
 		if kubernetesCluster == nil {
-			return nil, "", fmt.Errorf("failed to kubernetes cluster with id: %s", kubernetesClusterID)
+			return nil, "", fmt.Errorf("failed to get kubernetes cluster with id: %s", kubernetesClusterID)
 		}
 		if kubernetesCluster.Health == nil {
 			return nil, "", fmt.Errorf("failed to kubernetes cluster %s health data", kubernetesClusterID)
