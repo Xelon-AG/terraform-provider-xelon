@@ -3,13 +3,13 @@
 page_title: "xelon_kubernetes_node_pool Resource - terraform-provider-xelon"
 subcategory: ""
 description: |-
-  The kubernetes node pool resource allows you to manage node pools in XKS cluster.
+  The kubernetes node pool resource allows you to manage node pools in Xelon Kubernetes (XKS) cluster.
   XKS is a Kubernetes service with a fully managed control plane and high availability.
 ---
 
 # xelon_kubernetes_node_pool (Resource)
 
-The kubernetes node pool resource allows you to manage node pools in XKS cluster.
+The kubernetes node pool resource allows you to manage node pools in Xelon Kubernetes (XKS) cluster.
 XKS is a Kubernetes service with a fully managed control plane and high availability.
 
 ## Example Usage
@@ -43,7 +43,7 @@ resource "xelon_kubernetes_node_pool" "main" {
 
 ### Required
 
-- `kubernetes_cluster_id` (String) The ID of the Kubernetes cluster to which the node pool is associated..
+- `kubernetes_cluster_id` (String) The ID of the Kubernetes cluster to which the node pool is associated.
 - `name` (String) The name of the Kubernetes node pool.
 
 ### Optional
