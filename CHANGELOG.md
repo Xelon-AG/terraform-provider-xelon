@@ -1,4 +1,8 @@
 
+## v1.5.1 (2026-06-15)
+### Bug Fixes
+* **datasource/xelon_kubernetes_cluster**: add data source to fetch k8s and talos configurations
+
 ## v1.5.0 (2026-06-11)
 ### Bug Fixes
 * **datasource/xelon_xks_cluster_versions**: add latest attribute for talos and k8s versions
