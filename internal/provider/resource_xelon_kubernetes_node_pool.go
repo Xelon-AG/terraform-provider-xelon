@@ -60,7 +60,7 @@ func (r *kubernetesNodePoolResource) Metadata(_ context.Context, _ resource.Meta
 func (r *kubernetesNodePoolResource) Schema(ctx context.Context, _ resource.SchemaRequest, response *resource.SchemaResponse) {
 	response.Schema = schema.Schema{
 		MarkdownDescription: `
-The kubernetes node pool resource allows you to manage node pools in XKS cluster.
+The kubernetes node pool resource allows you to manage node pools in Xelon Kubernetes (XKS) cluster.
 XKS is a Kubernetes service with a fully managed control plane and high availability.
 `,
 		Version: 0,
@@ -85,7 +85,7 @@ XKS is a Kubernetes service with a fully managed control plane and high availabi
 				},
 			},
 			"kubernetes_cluster_id": schema.StringAttribute{
-				MarkdownDescription: "The ID of the Kubernetes cluster to which the node pool is associated..",
+				MarkdownDescription: "The ID of the Kubernetes cluster to which the node pool is associated.",
 				Required:            true,
 				PlanModifiers: []planmodifier.String{
 					stringplanmodifier.RequiresReplace(),
