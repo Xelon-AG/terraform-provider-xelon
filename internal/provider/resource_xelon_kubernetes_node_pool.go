@@ -210,7 +210,7 @@ func (r *kubernetesNodePoolResource) Create(ctx context.Context, request resourc
 func (r *kubernetesNodePoolResource) Read(ctx context.Context, request resource.ReadRequest, response *resource.ReadResponse) {
 	var data kubernetesNodePoolResourceModel
 
-	// read plan data into the model
+	// read state data into the model
 	diags := request.State.Get(ctx, &data)
 	response.Diagnostics.Append(diags...)
 	if response.Diagnostics.HasError() {
