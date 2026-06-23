@@ -1,0 +1,30 @@
+version: 2
+updates:
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    groups:
+      # Group all GitHub Actions dependencies together
+      "github-actions":
+        patterns:
+          - "*"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "09:00"
+      timezone: "Etc/UTC"
+
+  - package-ecosystem: "gomod"
+    directory: "/"
+    schedule:
+      interval: "daily"
+    groups:
+      # Group all terraform-plugin-(go|sdk|framework|testing) dependencies together
+      "terraform-plugin":
+        patterns:
+          - "github.com/hashicorp/terraform-plugin-*"
+
+  - package-ecosystem: "gomod"
+    directory: "/tools"
+    schedule:
+      interval: "daily"
+
