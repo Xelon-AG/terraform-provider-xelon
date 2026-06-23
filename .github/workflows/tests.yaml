@@ -74,7 +74,6 @@ jobs:
       XELON_TOKEN: ${{ secrets.XELON_TOKEN }}
     strategy:
       fail-fast: false
-      max-parallel: 1
       matrix:
         terraform-version:
           - "1.14.*"
