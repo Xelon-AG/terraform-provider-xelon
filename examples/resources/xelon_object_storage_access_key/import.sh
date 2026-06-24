@@ -1,0 +1,1 @@
+terraform import xelon_object_storage_access_key.test 153096db-01c4-4c89-93c1-8cee2229a8f1/0d0d1416c88b
