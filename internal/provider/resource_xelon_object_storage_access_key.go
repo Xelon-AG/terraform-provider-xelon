@@ -30,7 +30,7 @@ type objectStorageAccessKeyResource struct {
 	client *xelon.Client
 }
 
-// objectStorageUserResourceModel maps the object storage access key resource schema data.
+// objectStorageAccessKeyResourceModel maps the object storage access key resource schema data.
 type objectStorageAccessKeyResourceModel struct {
 	AccessKeyID         types.String `tfsdk:"access_key_id"`
 	CreatedAt           types.String `tfsdk:"created_at"`
