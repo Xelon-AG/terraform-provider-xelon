@@ -13,7 +13,6 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/int64planmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/planmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/stringplanmodifier"
-	"github.com/hashicorp/terraform-plugin-framework/schema/validator"
 	"github.com/hashicorp/terraform-plugin-framework/types"
 	"github.com/hashicorp/terraform-plugin-log/tflog"
 
@@ -25,6 +24,7 @@ var (
 	_ resource.Resource                = (*deviceResource)(nil)
 	_ resource.ResourceWithConfigure   = (*deviceResource)(nil)
 	_ resource.ResourceWithImportState = (*deviceResource)(nil)
+	_ resource.ResourceWithModifyPlan  = (*deviceResource)(nil)
 )
 
 // deviceResource is the device resource implementation.
@@ -190,7 +190,7 @@ Devices are the virtual machines that run your applications.
 				Optional:            true,
 				Sensitive:           true,
 				PlanModifiers: []planmodifier.String{
-					stringplanmodifier.UseStateForUnknown(),
+					stringplanmodifier.RequiresReplaceIfConfigured(),
 				},
 			},
 			"send_email": schema.BoolAttribute{
@@ -245,13 +245,6 @@ Devices are the virtual machines that run your applications.
 				Optional:            true,
 				PlanModifiers: []planmodifier.String{
 					stringplanmodifier.RequiresReplace(),
-				},
-				Validators: []validator.String{
-					helper.RequiresValidUserData(path.Expressions{
-						path.MatchRoot("password"),
-						path.MatchRoot("swap_disk_size"),
-					}...,
-					),
 				},
 			},
 		},
@@ -323,7 +316,12 @@ func (r *deviceResource) Create(ctx context.Context, request resource.CreateRequ
 	if data.MemoryHotPlug.ValueBool() {
 		createRequest.EnableRAMHotAdd = data.MemoryHotPlug.ValueBool()
 	}
-	tflog.Debug(ctx, "Creating device", map[string]any{"payload": createRequest})
+	tflog.Debug(ctx, "Creating device", map[string]any{
+		"display_name": data.DisplayName.ValueString(),
+		"hostname":     data.Hostname.ValueString(),
+		"template_id":  data.TemplateID.ValueString(),
+		"tenant_id":    data.TenantID.ValueString(),
+	})
 	createdDevice, _, err := r.client.Devices.Create(ctx, createRequest)
 	if err != nil {
 		response.Diagnostics.AddError("Unable to create device", err.Error())
@@ -671,6 +669,56 @@ func (r *deviceResource) Delete(ctx context.Context, request resource.DeleteRequ
 
 func (r *deviceResource) ImportState(ctx context.Context, request resource.ImportStateRequest, response *resource.ImportStateResponse) {
 	resource.ImportStatePassthroughID(ctx, path.Root("id"), request, response)
+}
+
+func (r *deviceResource) ModifyPlan(ctx context.Context, request resource.ModifyPlanRequest, response *resource.ModifyPlanResponse) {
+	if request.Plan.Raw.IsNull() {
+		return
+	}
+
+	var plan deviceResourceModel
+	diags := request.Plan.Get(ctx, &plan)
+	response.Diagnostics.Append(diags...)
+	if response.Diagnostics.HasError() {
+		return
+	}
+
+	requiresCreateInputs := request.State.Raw.IsNull()
+	if !request.State.Raw.IsNull() {
+		var state deviceResourceModel
+		response.Diagnostics.Append(request.State.Get(ctx, &state)...)
+		if response.Diagnostics.HasError() {
+			return
+		}
+
+		requiresCreateInputs = !plan.Password.Equal(state.Password) ||
+			!plan.TemplateID.Equal(state.TemplateID) ||
+			!plan.UserData.Equal(state.UserData)
+	}
+	if !requiresCreateInputs {
+		return
+	}
+
+	if plan.UserData.IsUnknown() || plan.UserData.ValueString() != "" {
+		return
+	}
+	if plan.Password.IsUnknown() || plan.SwapDiskSize.IsUnknown() {
+		return
+	}
+	if plan.Password.ValueString() == "" {
+		response.Diagnostics.AddAttributeError(
+			path.Root("password"),
+			"Missing password or user_data",
+			`Either "password" or "user_data" must be specified when creating or replacing a device.`,
+		)
+	}
+	if plan.SwapDiskSize.IsNull() {
+		response.Diagnostics.AddAttributeError(
+			path.Root("swap_disk_size"),
+			"Missing required attribute",
+			`Attribute "swap_disk_size" must be specified when "user_data" is not set.`,
+		)
+	}
 }
 
 // applyDeviceNetworkIPAddresses fills the ipv4_address attribute of each configured network

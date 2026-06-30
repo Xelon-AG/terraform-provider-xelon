@@ -171,6 +171,8 @@ XKS is a Kubernetes service with a fully managed control plane and high availabi
 			"timeouts": timeouts.Attributes(ctx, timeouts.Opts{
 				Create:            true,
 				CreateDescription: "Defaults to 30m.",
+				Update:            true,
+				UpdateDescription: "Defaults to 30m.",
 			}),
 		},
 	}
@@ -274,6 +276,7 @@ func (r *kubernetesClusterResource) Create(ctx context.Context, request resource
 		response.Diagnostics.AddError("Unable to wait for Kubernetes cluster to be ready", err.Error())
 		return
 	}
+	tflog.Info(ctx, "Kubernetes cluster is ready")
 
 	tflog.Info(ctx, "Waiting for Kubernetes cluster to be healthy", map[string]any{"kubernetes_cluster_id": kubernetesClusterID})
 	err = helper.WaitKubernetesClusterControlPlaneStatusHealthy(ctx, r.client, kubernetesClusterID, createTimeout)
@@ -283,6 +286,15 @@ func (r *kubernetesClusterResource) Create(ctx context.Context, request resource
 		response.Diagnostics.AddError("Unable to wait for Kubernetes cluster to be healthy", err.Error())
 		return
 	}
+	tflog.Info(ctx, "Kubernetes cluster is healthy")
+
+	tflog.Debug(ctx, "Getting Kubernetes cluster with enriched properties", map[string]any{"kubernetes_cluster_id": kubernetesClusterID})
+	kubernetesCluster, _, err := r.client.Kubernetes.Get(ctx, kubernetesClusterID)
+	if err != nil {
+		response.Diagnostics.AddError("Unable to get Kubernetes cluster", err.Error())
+		return
+	}
+	tflog.Debug(ctx, "Got Kubernetes cluster with enriched properties", map[string]any{"data": kubernetesCluster})
 
 	tflog.Debug(ctx, "Getting Kubernetes control plane data", map[string]any{"kubernetes_cluster_id": kubernetesClusterID})
 	controlPlane, _, err := r.client.Kubernetes.ListControlPlane(ctx, kubernetesClusterID)
@@ -301,15 +313,7 @@ func (r *kubernetesClusterResource) Create(ctx context.Context, request resource
 	tflog.Debug(ctx, "Got Kubernetes load balancer data", map[string]any{"data": controlPlane})
 
 	// map response body to attributes
-	data.ID = types.StringValue(kubernetesClusterID)
-	data.ControlPlane, diags = flattenControlPlane(ctx, controlPlane)
-	response.Diagnostics.Append(diags...)
-	data.LoadBalancer, diags = flattenLoadBalancer(ctx, loadBalancer)
-	response.Diagnostics.Append(diags...)
-	if response.Diagnostics.HasError() {
-		return
-	}
-
+	response.Diagnostics.Append(data.fromAPI(ctx, kubernetesCluster, controlPlane, loadBalancer)...)
 	diags = response.State.Set(ctx, &data)
 	response.Diagnostics.Append(diags...)
 }
@@ -350,21 +354,107 @@ func (r *kubernetesClusterResource) Read(ctx context.Context, request resource.R
 	tflog.Debug(ctx, "Got Kubernetes load balancer data", map[string]any{"data": controlPlane})
 
 	// map response body to attributes
-	data.ID = types.StringValue(kubernetesClusterID)
-	data.ControlPlane, diags = flattenControlPlane(ctx, controlPlane)
-	response.Diagnostics.Append(diags...)
-	data.LoadBalancer, diags = flattenLoadBalancer(ctx, loadBalancer)
-	response.Diagnostics.Append(diags...)
-	if response.Diagnostics.HasError() {
-		return
-	}
-
+	response.Diagnostics.Append(data.fromAPI(ctx, kubernetesCluster, controlPlane, loadBalancer)...)
 	diags = response.State.Set(ctx, &data)
 	response.Diagnostics.Append(diags...)
 }
 
-func (r *kubernetesClusterResource) Update(ctx context.Context, _ resource.UpdateRequest, _ *resource.UpdateResponse) {
-	tflog.Info(ctx, "Update is not implemented yet")
+func (r *kubernetesClusterResource) Update(ctx context.Context, request resource.UpdateRequest, response *resource.UpdateResponse) {
+	var plan, state kubernetesClusterResourceModel
+
+	// read plan and state data into the model
+	response.Diagnostics.Append(request.Plan.Get(ctx, &plan)...)
+	response.Diagnostics.Append(request.State.Get(ctx, &state)...)
+	if response.Diagnostics.HasError() {
+		return
+	}
+	var planControlPlaneModel kubernetesClusterNodeSpecResourceModel
+	response.Diagnostics.Append(plan.ControlPlane.As(ctx, &planControlPlaneModel, basetypes.ObjectAsOptions{})...)
+	if response.Diagnostics.HasError() {
+		return
+	}
+	var stateControlPlaneModel kubernetesClusterNodeSpecResourceModel
+	response.Diagnostics.Append(state.ControlPlane.As(ctx, &stateControlPlaneModel, basetypes.ObjectAsOptions{})...)
+	if response.Diagnostics.HasError() {
+		return
+	}
+
+	// configure timeout
+	updateTimeout, diags := plan.Timeouts.Update(ctx, defaultKubernetesNodePoolTimeout)
+	response.Diagnostics.Append(diags...)
+	if response.Diagnostics.HasError() {
+		return
+	}
+	ctx, cancel := context.WithTimeout(ctx, updateTimeout)
+	defer cancel()
+
+	kubernetesClusterID := state.ID.ValueString()
+
+	if !planControlPlaneModel.HighAvailabilityEnabled.Equal(stateControlPlaneModel.HighAvailabilityEnabled) {
+		tflog.Warn(ctx, "Converting control plane to high-availability mode is not supported yet")
+	}
+
+	if !planControlPlaneModel.CPUCoreCount.Equal(stateControlPlaneModel.CPUCoreCount) ||
+		!planControlPlaneModel.DiskSize.Equal(stateControlPlaneModel.DiskSize) ||
+		!planControlPlaneModel.Memory.Equal(stateControlPlaneModel.Memory) {
+		updateRequest := &xelon.KubernetesClusterControlPlaneUpdateRequest{
+			CPUCores: int(planControlPlaneModel.CPUCoreCount.ValueInt64()),
+			DiskSize: int(planControlPlaneModel.DiskSize.ValueInt64()),
+			RAM:      int(planControlPlaneModel.Memory.ValueInt64()),
+		}
+		tflog.Debug(ctx, "Updating Kubernetes control plane", map[string]any{
+			"kubernetes_cluster_id": kubernetesClusterID,
+			"payload":               updateRequest,
+		})
+		_, err := r.client.Kubernetes.UpdateControlPlane(ctx, kubernetesClusterID, updateRequest)
+		if err != nil {
+			response.Diagnostics.AddError("Unable to update Kubernetes control plane", err.Error())
+			return
+		}
+		tflog.Debug(ctx, "Updated Kubernetes control plane", map[string]any{
+			"kubernetes_cluster_id": kubernetesClusterID,
+			"payload":               updateRequest,
+		})
+
+		tflog.Info(ctx, "Waiting for Kubernetes cluster to be ready", map[string]any{"kubernetes_cluster_id": kubernetesClusterID})
+		err = helper.WaitKubernetesClusterStatusReady(ctx, r.client, kubernetesClusterID, updateTimeout)
+		if err != nil {
+			// set id to state that the resource will be marked as tainted
+			response.Diagnostics.Append(response.State.SetAttribute(ctx, path.Root("id"), kubernetesClusterID)...)
+			response.Diagnostics.AddError("Unable to wait for Kubernetes cluster to be ready", err.Error())
+			return
+		}
+		tflog.Info(ctx, "Kubernetes cluster is ready", map[string]any{"kubernetes_cluster_id": kubernetesClusterID})
+	}
+
+	tflog.Debug(ctx, "Getting Kubernetes cluster with enriched properties", map[string]any{"kubernetes_cluster_id": kubernetesClusterID})
+	kubernetesCluster, _, err := r.client.Kubernetes.Get(ctx, kubernetesClusterID)
+	if err != nil {
+		response.Diagnostics.AddError("Unable to get Kubernetes cluster", err.Error())
+		return
+	}
+	tflog.Debug(ctx, "Got Kubernetes cluster with enriched properties", map[string]any{"data": kubernetesCluster})
+
+	tflog.Debug(ctx, "Getting Kubernetes control plane data", map[string]any{"kubernetes_cluster_id": kubernetesClusterID})
+	controlPlane, _, err := r.client.Kubernetes.ListControlPlane(ctx, kubernetesClusterID)
+	if err != nil {
+		response.Diagnostics.AddError("Unable to get Kubernetes cluster control plane", err.Error())
+		return
+	}
+	tflog.Debug(ctx, "Got Kubernetes control plane data", map[string]any{"data": controlPlane})
+
+	tflog.Debug(ctx, "Getting Kubernetes load balancer data", map[string]any{"kubernetes_cluster_id": kubernetesClusterID})
+	loadBalancer, _, err := r.client.Kubernetes.ListLoadBalancer(ctx, kubernetesClusterID)
+	if err != nil {
+		response.Diagnostics.AddError("Unable to get Kubernetes cluster load balancer", err.Error())
+		return
+	}
+	tflog.Debug(ctx, "Got Kubernetes load balancer data", map[string]any{"data": controlPlane})
+
+	// map response body to attributes
+	response.Diagnostics.Append(plan.fromAPI(ctx, kubernetesCluster, controlPlane, loadBalancer)...)
+	diags = response.State.Set(ctx, &plan)
+	response.Diagnostics.Append(diags...)
 }
 
 func (r *kubernetesClusterResource) Delete(ctx context.Context, request resource.DeleteRequest, response *resource.DeleteResponse) {
@@ -405,22 +495,35 @@ func nodeSpecDefaultValues() map[string]attr.Value {
 	}
 }
 
-func flattenControlPlane(ctx context.Context, controlPlane *xelon.KubernetesClusterControlPlane) (types.Object, diag.Diagnostics) {
-	highAvailabilityEnabled := len(controlPlane.Nodes) > 1
-	return types.ObjectValueFrom(ctx, nodeSpecAttributeTypes(), kubernetesClusterNodeSpecResourceModel{
+func (m *kubernetesClusterResourceModel) fromAPI(ctx context.Context, kubernetesCluster *xelon.KubernetesCluster, controlPlane *xelon.KubernetesClusterControlPlane, loadBalancer *xelon.KubernetesClusterLoadBalancer) diag.Diagnostics {
+	var diags diag.Diagnostics
+
+	m.ID = types.StringValue(kubernetesCluster.ID)
+	m.Name = types.StringValue(kubernetesCluster.Name)
+
+	cloudID := ""
+	if kubernetesCluster.Cloud != nil {
+		cloudID = kubernetesCluster.Cloud.ID
+	}
+	m.CloudID = types.StringValue(cloudID)
+
+	controlPlaneModel, d := types.ObjectValueFrom(ctx, nodeSpecAttributeTypes(), kubernetesClusterNodeSpecResourceModel{
 		CPUCoreCount:            types.Int64Value(int64(controlPlane.CPUCores)),
 		DiskSize:                types.Int64Value(int64(controlPlane.DiskSize)),
-		HighAvailabilityEnabled: types.BoolValue(highAvailabilityEnabled),
+		HighAvailabilityEnabled: types.BoolValue(len(controlPlane.Nodes) > 1),
 		Memory:                  types.Int64Value(int64(controlPlane.RAM)),
 	})
-}
+	diags.Append(d...)
+	m.ControlPlane = controlPlaneModel
 
-func flattenLoadBalancer(ctx context.Context, loadBalancer *xelon.KubernetesClusterLoadBalancer) (types.Object, diag.Diagnostics) {
-	highAvailabilityEnabled := len(loadBalancer.Instances) > 1
-	return types.ObjectValueFrom(ctx, nodeSpecAttributeTypes(), kubernetesClusterNodeSpecResourceModel{
+	loadBalancerModel, d := types.ObjectValueFrom(ctx, nodeSpecAttributeTypes(), kubernetesClusterNodeSpecResourceModel{
 		CPUCoreCount:            types.Int64Value(int64(loadBalancer.CPUCores)),
 		DiskSize:                types.Int64Value(int64(loadBalancer.DiskSize)),
-		HighAvailabilityEnabled: types.BoolValue(highAvailabilityEnabled),
+		HighAvailabilityEnabled: types.BoolValue(len(loadBalancer.Instances) > 1),
 		Memory:                  types.Int64Value(int64(loadBalancer.RAM)),
 	})
+	diags.Append(d...)
+	m.LoadBalancer = loadBalancerModel
+
+	return diags
 }

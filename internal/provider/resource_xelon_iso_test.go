@@ -127,10 +127,10 @@ func TestAccResourceXelonISO_expectError(t *testing.T) {
 func testAccResourceXelonISOConfig(name string) string {
 	return fmt.Sprintf(`
 resource "xelon_iso" "test" {
-  category_id = 2
+  category_id = 7
   cloud_id    = data.xelon_cloud.test.id
   name        = %[1]q
-  url         = "https://cdimage.debian.org/releases/20.04.6/ubuntu-20.04.6-live-server-amd64.iso"
+  url         = "http://tinycorelinux.net/16.x/x86_64/release/TinyCorePure64-current.iso"
 }
 
 data "xelon_cloud" "test" {
@@ -143,11 +143,11 @@ data "xelon_cloud" "test" {
 func testAccResourceXelonISOConfigWithDescription(name, description string) string {
 	return fmt.Sprintf(`
 resource "xelon_iso" "test" {
-  category_id = 2
+  category_id = 7
   cloud_id    = data.xelon_cloud.test.id
   description = %[2]q
   name        = %[1]q
-  url         = "https://cdimage.debian.org/releases/20.04.6/ubuntu-20.04.6-live-server-amd64.iso"
+  url         = "http://tinycorelinux.net/16.x/x86_64/release/TinyCorePure64-current.iso"
 }
 
 data "xelon_cloud" "test" {
@@ -159,7 +159,7 @@ data "xelon_cloud" "test" {
 
 const testAccResourceXelonISOConfigWithoutName = `
 resource "xelon_iso" "test" {
-  category_id = 2
+  category_id = 7
   cloud_id    = "random-id"
   url         = "random-url"
 }
@@ -175,7 +175,7 @@ resource "xelon_iso" "test" {
 
 const testAccResourceXelonISOConfigWithoutURL = `
 resource "xelon_iso" "test" {
-  category_id = 2
+  category_id = 7
   cloud_id    = "random-id"
   name        = "random-name"
 }

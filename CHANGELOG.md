@@ -1,4 +1,27 @@
 
+## v1.5.1 (2026-06-15)
+### Bug Fixes
+* **datasource/xelon_kubernetes_cluster**: add data source to fetch k8s and talos configurations
+
+## v1.5.0 (2026-06-11)
+### Bug Fixes
+* **datasource/xelon_xks_cluster_versions**: add latest attribute for talos and k8s versions
+* **deps**: upgrade xelon-sdk-go to v1.9.1
+* **resource/xelon_kubernetes_cluster**: handle control plane changes
+* **resource/xelon_kubernetes_cluster**: remove ephemeral kube_config_raw attribute
+### Code Refactoring
+* **datasource/xelon_kubernetes_cluster_versions**: rename xks to kubernetes
+* **resource/xelon_kubernetes_cluster**: rename resource
+### Documentation
+* **resource/xelon_kubernetes_cluster**: update documentation
+### Features
+* **datasource/xelon_template**: enhance filtering with cloud_id and most_recent options
+* **datasource/xelon_xks_cluster_versions**: add new data source for k8s cluster versions
+* **resource/xelon_kubernetes_node_pool**: add new resource to manage kubernetes node pool
+* **resource/xelon_xks_cluster**: add new resource to manage kubernetes clusters
+### Maintaining
+* **actions**: update terraform versions in acceptance tests matrix
+
 ## v1.4.0 (2026-05-04)
 ### Documentation
 * **resource/xelon_dns_zone**: update documentation

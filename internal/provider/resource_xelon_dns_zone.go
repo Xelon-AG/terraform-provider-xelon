@@ -101,7 +101,7 @@ func (r *dnsZoneResource) Create(ctx context.Context, request resource.CreateReq
 		Domain: data.Name.ValueString(),
 	}
 	tflog.Debug(ctx, "Creating dns zone", map[string]any{"payload": createRequest})
-	createDNSZone, _, err := r.client.Domains.CreateDNSZone(ctx, createRequest)
+	createDNSZone, _, err := r.client.Domains.CreateZone(ctx, createRequest)
 	if err != nil {
 		response.Diagnostics.AddError("Unable to create dns zone", err.Error())
 		return
@@ -128,7 +128,7 @@ func (r *dnsZoneResource) Read(ctx context.Context, request resource.ReadRequest
 
 	dnsZoneID := data.ID.ValueString()
 	tflog.Debug(ctx, "Getting dns zone", map[string]any{"dns_zone_id": dnsZoneID})
-	dnsZone, resp, err := r.client.Domains.GetDNSZone(ctx, dnsZoneID)
+	dnsZone, resp, err := r.client.Domains.GetZone(ctx, dnsZoneID)
 	if err != nil {
 		if resp != nil && resp.StatusCode == http.StatusNotFound {
 			// if the dns zone is somehow already destroyed, mark as successfully gone
@@ -164,7 +164,7 @@ func (r *dnsZoneResource) Delete(ctx context.Context, request resource.DeleteReq
 
 	dnsZoneID := data.ID.ValueString()
 	tflog.Debug(ctx, "Deleting dns zone", map[string]any{"dns_zone_id": dnsZoneID})
-	_, err := r.client.Domains.DeleteDNSZone(ctx, dnsZoneID)
+	_, err := r.client.Domains.DeleteZone(ctx, dnsZoneID)
 	if err != nil {
 		response.Diagnostics.AddError("Unable to delete dns zone", err.Error())
 		return

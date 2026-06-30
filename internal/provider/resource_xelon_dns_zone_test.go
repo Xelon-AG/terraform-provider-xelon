@@ -26,11 +26,11 @@ func init() {
 				return err
 			}
 
-			dnsZones, errf := client.Domains.AllDNSZones(ctx, &xelon.ListOptions{PerPage: 100})
+			dnsZones, errf := client.Domains.AllZones(ctx, &xelon.ListOptions{PerPage: 100})
 			for dnsZone := range dnsZones {
 				if strings.HasPrefix(dnsZone.Name, accTestPrefix) {
 					slog.Info("Deleting xelon_dns_zone", "name", dnsZone.Name, "id", dnsZone.ID)
-					_, err := client.Domains.DeleteDNSZone(ctx, dnsZone.ID)
+					_, err := client.Domains.DeleteZone(ctx, dnsZone.ID)
 					if err != nil {
 						slog.Warn("Error deleting dns zone during sweep", "name", dnsZone.Name, "error", err)
 					}

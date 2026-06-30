@@ -2,211 +2,203 @@ package provider
 
 import (
 	"context"
-	"fmt"
-	"log/slog"
-	"strings"
 	"testing"
 
-	"github.com/hashicorp/terraform-plugin-testing/helper/acctest"
-	"github.com/hashicorp/terraform-plugin-testing/helper/resource"
-	"github.com/hashicorp/terraform-plugin-testing/knownvalue"
-	"github.com/hashicorp/terraform-plugin-testing/statecheck"
-	"github.com/hashicorp/terraform-plugin-testing/tfjsonpath"
-
-	"github.com/Xelon-AG/xelon-sdk-go/xelon"
+	"github.com/hashicorp/terraform-plugin-framework/diag"
+	"github.com/hashicorp/terraform-plugin-framework/path"
+	"github.com/hashicorp/terraform-plugin-framework/resource"
+	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
+	"github.com/hashicorp/terraform-plugin-framework/resource/schema/planmodifier"
+	"github.com/hashicorp/terraform-plugin-framework/tfsdk"
+	"github.com/hashicorp/terraform-plugin-framework/types"
+	"github.com/hashicorp/terraform-plugin-go/tftypes"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
-func init() {
-	resource.AddTestSweepers("xelon_device", &resource.Sweeper{
-		Name: "xelon_device",
-		F: func(region string) error {
-			ctx := context.Background()
-			client, err := sharedClient(region)
-			if err != nil {
-				return err
-			}
+func TestResourceXelonDevice_Schema_Password(t *testing.T) {
+	deviceSchema := testDeviceResourceSchema(t)
 
-			devices, errf := client.Devices.All(ctx, &xelon.ListOptions{PerPage: 100})
-			for device := range devices {
-				if strings.HasPrefix(device.DisplayName, accTestPrefix) {
-					slog.Info("Deleting xelon_device", "name", device.DisplayName, "id", device.ID)
-					_, err := client.Devices.Delete(ctx, device.ID)
-					if err != nil {
-						slog.Warn("Error deleting device during sweep", "name", device.DisplayName, "error", err)
-					}
-				}
-			}
-			if err := errf(); err != nil {
-				return fmt.Errorf("getting device list: %w", err)
-			}
+	password, ok := deviceSchema.Attributes["password"].(schema.StringAttribute)
+	require.True(t, ok)
 
-			return nil
-		},
-	})
+	assert.True(t, password.Optional)
+	assert.False(t, password.Computed)
+	assert.True(t, password.Sensitive)
+	require.Len(t, password.PlanModifiers, 1)
+	assert.Contains(t, password.PlanModifiers[0].Description(context.Background()), "configured and changes")
 }
 
-func TestAccResourceXelonDevice(t *testing.T) {
-	hostname := fmt.Sprintf("%s-%s", accTestPrefix, acctest.RandString(10))
-	displayName := hostname
-	displayNameUpdated := fmt.Sprintf("%s-%s", accTestPrefix, acctest.RandString(10))
+func TestResourceXelonDevice_Create_RequiresPasswordOrUserData(t *testing.T) {
+	ctx := context.Background()
+	deviceSchema := testDeviceResourceSchema(t)
+	plan := testDeviceResourcePlan(t, ctx, deviceSchema, types.StringNull(), types.StringNull())
+	state := tfsdk.State{
+		Schema: deviceSchema,
+		Raw:    tftypes.NewValue(deviceSchema.Type().TerraformType(ctx), nil),
+	}
 
-	resource.Test(t, resource.TestCase{
-		PreCheck:                 func() { testAccPreCheck(t) },
-		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
-		Steps: []resource.TestStep{
-			// create and read
+	response := &resource.ModifyPlanResponse{}
+	NewDeviceResource().(*deviceResource).ModifyPlan(ctx, resource.ModifyPlanRequest{
+		Plan:  plan,
+		State: state,
+	}, response)
+
+	require.True(t, response.Diagnostics.HasError())
+	assert.True(t, response.Diagnostics.Equal(expectedDeviceMissingPasswordOrUserDataDiagnostics()))
+}
+
+func TestResourceXelonDevice_Import_DoesNotRequirePasswordOrUserData(t *testing.T) {
+	ctx := context.Background()
+	deviceSchema := testDeviceResourceSchema(t)
+	plan := testDeviceResourcePlan(t, ctx, deviceSchema, types.StringNull(), types.StringNull())
+	state := tfsdk.State{
+		Schema: deviceSchema,
+		Raw:    plan.Raw,
+	}
+
+	response := &resource.ModifyPlanResponse{}
+	NewDeviceResource().(*deviceResource).ModifyPlan(ctx, resource.ModifyPlanRequest{
+		Plan:  plan,
+		State: state,
+	}, response)
+
+	assert.False(t, response.Diagnostics.HasError())
+}
+
+func TestResourceXelonDevice_Import_PasswordOmittedDoesNotRequireReplacement(t *testing.T) {
+	response := testDevicePasswordPlanModifierResponse(t, types.StringNull(), types.StringNull(), types.StringNull())
+
+	require.False(t, response.Diagnostics.HasError())
+	assert.False(t, response.RequiresReplace)
+}
+
+func TestResourceXelonDevice_Import_ConfiguredPasswordRequiresReplacement(t *testing.T) {
+	response := testDevicePasswordPlanModifierResponse(t, types.StringValue("new-password"), types.StringValue("new-password"), types.StringNull())
+
+	require.False(t, response.Diagnostics.HasError())
+	assert.True(t, response.RequiresReplace)
+}
+
+func TestResourceXelonDevice_Update_PasswordChangeRequiresReplacement(t *testing.T) {
+	response := testDevicePasswordPlanModifierResponse(t, types.StringValue("new-password"), types.StringValue("new-password"), types.StringValue("old-password"))
+
+	require.False(t, response.Diagnostics.HasError())
+	assert.True(t, response.RequiresReplace)
+}
+
+func TestResourceXelonDevice_Replacement_RequiresPasswordOrUserData(t *testing.T) {
+	ctx := context.Background()
+	deviceSchema := testDeviceResourceSchema(t)
+	plan := testDeviceResourcePlan(t, ctx, deviceSchema, types.StringNull(), types.StringNull())
+	statePlan := testDeviceResourcePlanWithTemplateID(t, ctx, deviceSchema, types.StringNull(), types.StringNull(), "old-template-id")
+	state := tfsdk.State{
+		Schema: deviceSchema,
+		Raw:    statePlan.Raw,
+	}
+
+	response := &resource.ModifyPlanResponse{}
+	NewDeviceResource().(*deviceResource).ModifyPlan(ctx, resource.ModifyPlanRequest{
+		Plan:  plan,
+		State: state,
+	}, response)
+
+	require.True(t, response.Diagnostics.HasError())
+	assert.True(t, response.Diagnostics.Equal(expectedDeviceMissingPasswordOrUserDataDiagnostics()))
+}
+
+func testDeviceResourceSchema(t *testing.T) schema.Schema {
+	t.Helper()
+
+	r := NewDeviceResource()
+	response := &resource.SchemaResponse{}
+	r.Schema(context.Background(), resource.SchemaRequest{}, response)
+	require.False(t, response.Diagnostics.HasError())
+
+	return response.Schema
+}
+
+func testDeviceResourcePlan(t *testing.T, ctx context.Context, deviceSchema schema.Schema, password, userData types.String) tfsdk.Plan {
+	t.Helper()
+
+	return testDeviceResourcePlanWithTemplateID(t, ctx, deviceSchema, password, userData, "template-id")
+}
+
+func testDeviceResourcePlanWithTemplateID(t *testing.T, ctx context.Context, deviceSchema schema.Schema, password, userData types.String, templateID string) tfsdk.Plan {
+	t.Helper()
+
+	plan := tfsdk.Plan{Schema: deviceSchema}
+	diags := plan.Set(ctx, &deviceResourceModel{
+		BackupJobID:      types.Int64Null(),
+		CPUCoreCount:     types.Int64Value(2),
+		CPUCoreHotPlug:   types.BoolNull(),
+		DiskID:           types.StringUnknown(),
+		DiskSize:         types.Int64Value(10),
+		DisplayName:      types.StringValue("test-device"),
+		EnableMonitoring: types.BoolNull(),
+		Hostname:         types.StringValue("test-device"),
+		ID:               types.StringUnknown(),
+		Memory:           types.Int64Value(2),
+		MemoryHotPlug:    types.BoolNull(),
+		Networks: []deviceNetworkResourceModel{
 			{
-				Config: testAccResourceXelonDeviceConfig(displayName, hostname, 10),
-				ConfigStateChecks: []statecheck.StateCheck{
-					statecheck.ExpectKnownValue(
-						"xelon_device.test",
-						tfjsonpath.New("cpu_core_count"),
-						knownvalue.Int64Exact(2),
-					),
-					statecheck.ExpectKnownValue(
-						"xelon_device.test",
-						tfjsonpath.New("disk_id"),
-						knownvalue.NotNull(),
-					),
-					statecheck.ExpectKnownValue(
-						"xelon_device.test",
-						tfjsonpath.New("disk_size"),
-						knownvalue.Int64Exact(10),
-					),
-					statecheck.ExpectKnownValue(
-						"xelon_device.test",
-						tfjsonpath.New("display_name"),
-						knownvalue.StringExact(displayName),
-					),
-					statecheck.ExpectKnownValue(
-						"xelon_device.test",
-						tfjsonpath.New("enable_monitoring"),
-						knownvalue.Bool(false),
-					),
-					statecheck.ExpectKnownValue(
-						"xelon_device.test",
-						tfjsonpath.New("hostname"),
-						knownvalue.StringExact(hostname),
-					),
-					statecheck.ExpectKnownValue(
-						"xelon_device.test",
-						tfjsonpath.New("id"),
-						knownvalue.NotNull(),
-					),
-					statecheck.ExpectKnownValue(
-						"xelon_device.test",
-						tfjsonpath.New("memory"),
-						knownvalue.Int64Exact(2),
-					),
-					statecheck.ExpectKnownValue(
-						"xelon_device.test",
-						tfjsonpath.New("swap_disk_id"),
-						knownvalue.NotNull(),
-					),
-					statecheck.ExpectKnownValue(
-						"xelon_device.test",
-						tfjsonpath.New("swap_disk_size"),
-						knownvalue.Int64Exact(1),
-					),
-					statecheck.ExpectKnownValue(
-						"xelon_device.test",
-						tfjsonpath.New("tenant_id"),
-						knownvalue.NotNull(),
-					),
-				},
-			},
-			// update and read
-			{
-				Config: testAccResourceXelonDeviceConfig(displayNameUpdated, hostname, 15),
-				ConfigStateChecks: []statecheck.StateCheck{
-					statecheck.ExpectKnownValue(
-						"xelon_device.test",
-						tfjsonpath.New("cpu_core_count"),
-						knownvalue.Int64Exact(2),
-					),
-					statecheck.ExpectKnownValue(
-						"xelon_device.test",
-						tfjsonpath.New("disk_id"),
-						knownvalue.NotNull(),
-					),
-					statecheck.ExpectKnownValue(
-						"xelon_device.test",
-						tfjsonpath.New("disk_size"),
-						knownvalue.Int64Exact(15),
-					),
-					statecheck.ExpectKnownValue(
-						"xelon_device.test",
-						tfjsonpath.New("display_name"),
-						knownvalue.StringExact(displayNameUpdated),
-					),
-					statecheck.ExpectKnownValue(
-						"xelon_device.test",
-						tfjsonpath.New("enable_monitoring"),
-						knownvalue.Bool(false),
-					),
-					statecheck.ExpectKnownValue(
-						"xelon_device.test",
-						tfjsonpath.New("hostname"),
-						knownvalue.StringExact(hostname),
-					),
-					statecheck.ExpectKnownValue(
-						"xelon_device.test",
-						tfjsonpath.New("id"),
-						knownvalue.NotNull(),
-					),
-					statecheck.ExpectKnownValue(
-						"xelon_device.test",
-						tfjsonpath.New("memory"),
-						knownvalue.Int64Exact(2),
-					),
-					statecheck.ExpectKnownValue(
-						"xelon_device.test",
-						tfjsonpath.New("swap_disk_id"),
-						knownvalue.NotNull(),
-					),
-					statecheck.ExpectKnownValue(
-						"xelon_device.test",
-						tfjsonpath.New("swap_disk_size"),
-						knownvalue.Int64Exact(1),
-					),
-					statecheck.ExpectKnownValue(
-						"xelon_device.test",
-						tfjsonpath.New("tenant_id"),
-						knownvalue.NotNull(),
-					),
-				},
+				Connected:   types.BoolValue(true),
+				ID:          types.StringValue("network-id"),
+				IPAddress:   types.StringNull(),
+				IPAddressID: types.StringNull(),
 			},
 		},
+		Password:     password,
+		SendEmail:    types.BoolNull(),
+		SSHKeyID:     types.StringNull(),
+		ScriptID:     types.StringNull(),
+		SwapDiskID:   types.StringUnknown(),
+		SwapDiskSize: types.Int64Value(1),
+		TemplateID:   types.StringValue(templateID),
+		TenantID:     types.StringValue("tenant-id"),
+		UserData:     userData,
 	})
+	require.False(t, diags.HasError())
+
+	return plan
 }
 
-func testAccResourceXelonDeviceConfig(displayName, hostname string, diskSize int) string {
-	return fmt.Sprintf(`
-resource "xelon_device" "test" {
-  cpu_core_count = 2
-  disk_size      = %[3]d
-  display_name   = %[1]q
-  hostname       = %[2]q
-  memory         = 2
-  password       = "J78q3H"
-  swap_disk_size = 1
-  template_id    = data.xelon_template.test.id
-  tenant_id      = data.xelon_tenant.test.id
+func testDevicePasswordPlanModifierResponse(t *testing.T, configValue, planValue, stateValue types.String) *planmodifier.StringResponse {
+	t.Helper()
 
-  networks = [
-    {
-      connected = true
-      id        = "654871d16146"
-    }
-  ]
+	ctx := context.Background()
+	deviceSchema := testDeviceResourceSchema(t)
+
+	password, ok := deviceSchema.Attributes["password"].(schema.StringAttribute)
+	require.True(t, ok)
+	require.Len(t, password.PlanModifiers, 1)
+
+	plan := testDeviceResourcePlan(t, ctx, deviceSchema, planValue, types.StringNull())
+	statePlan := testDeviceResourcePlan(t, ctx, deviceSchema, stateValue, types.StringNull())
+
+	response := &planmodifier.StringResponse{
+		PlanValue: planValue,
+	}
+	password.PlanModifiers[0].PlanModifyString(ctx, planmodifier.StringRequest{
+		ConfigValue: configValue,
+		Plan:        plan,
+		PlanValue:   planValue,
+		State: tfsdk.State{
+			Schema: deviceSchema,
+			Raw:    statePlan.Raw,
+		},
+		StateValue: stateValue,
+	}, response)
+
+	return response
 }
 
-data "xelon_tenant" "test" {}
-
-data "xelon_template" "test" {
-  cloud_id    = "e96db9d92ec7"
-  name        = "Debian 11"
-  most_recent = true
-}
-`, displayName, hostname, diskSize)
+func expectedDeviceMissingPasswordOrUserDataDiagnostics() diag.Diagnostics {
+	return diag.Diagnostics{
+		diag.NewAttributeErrorDiagnostic(
+			path.Root("password"),
+			"Missing password or user_data",
+			`Either "password" or "user_data" must be specified when creating or replacing a device.`,
+		),
+	}
 }
