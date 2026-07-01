@@ -379,7 +379,7 @@ func (r *deviceResource) Create(ctx context.Context, request resource.CreateRequ
 		response.Diagnostics.AddError("Unable to get device network info", err.Error())
 		return
 	}
-	tflog.Debug(ctx, "Got device network info", map[string]any{"data": deviceNetworks})
+	tflog.Debug(ctx, "Got device network info", map[string]any{"device_id": deviceID, "count": len(deviceNetworks)})
 	data.Networks = applyDeviceNetworkIPAddresses(data.Networks, deviceNetworks)
 
 	diags = response.State.Set(ctx, &data)
@@ -434,7 +434,7 @@ func (r *deviceResource) Read(ctx context.Context, request resource.ReadRequest,
 		response.Diagnostics.AddError("Unable to get device network info", err.Error())
 		return
 	}
-	tflog.Debug(ctx, "Got device network info", map[string]any{"data": deviceNetworks})
+	tflog.Debug(ctx, "Got device network info", map[string]any{"device_id": deviceID, "count": len(deviceNetworks)})
 	data.Networks = applyDeviceNetworkIPAddresses(data.Networks, deviceNetworks)
 
 	diags = response.State.Set(ctx, &data)
@@ -722,15 +722,15 @@ func (r *deviceResource) ModifyPlan(ctx context.Context, request resource.Modify
 }
 
 // applyDeviceNetworkIPAddresses fills the ipv4_address attribute of each configured network
-// with the IP address assigned by Xelon, matching entries by network ID. This makes
+// with the IPv4 address assigned by Xelon, matching entries by network ID. This makes
 // auto-assigned IP addresses readable from state, e.g. to feed load balancer forwarding rules.
 // Statically configured addresses are preserved; entries left without a value are normalized
 // to null so no unknown value remains after apply.
 func applyDeviceNetworkIPAddresses(networks []deviceNetworkResourceModel, deviceNetworks []xelon.DeviceNetwork) []deviceNetworkResourceModel {
 	ipAddressByNetworkID := make(map[string]string, len(deviceNetworks))
 	for _, deviceNetwork := range deviceNetworks {
-		if len(deviceNetwork.IPAddresses) > 0 {
-			ipAddressByNetworkID[deviceNetwork.ID] = deviceNetwork.IPAddresses[0].String()
+		if ipAddress, ok := firstIPv4Address(deviceNetwork.IPAddresses); ok {
+			ipAddressByNetworkID[deviceNetwork.ID] = ipAddress
 		}
 	}
 
@@ -743,6 +743,18 @@ func applyDeviceNetworkIPAddresses(networks []deviceNetworkResourceModel, device
 	}
 
 	return networks
+}
+
+// firstIPv4Address returns the first IPv4 address from the given list, since the
+// ipv4_address attribute only tracks IPv4. IPv6 addresses are skipped.
+func firstIPv4Address(ipAddresses xelon.DeviceNetworkIPAddresses) (string, bool) {
+	for _, ipAddress := range ipAddresses {
+		if ipAddress.Is4() {
+			return ipAddress.String(), true
+		}
+	}
+
+	return "", false
 }
 
 // findDiskIDBySize looks up for xelon.DeviceStorage by size. If multiple disks are found,

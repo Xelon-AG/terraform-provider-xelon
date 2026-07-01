@@ -113,6 +113,14 @@ func TestAccResourceXelonDevice(t *testing.T) {
 						tfjsonpath.New("tenant_id"),
 						knownvalue.NotNull(),
 					),
+					// the network is created without an explicit ipv4_address, so this
+					// asserts the auto-assigned address is read back into state as a
+					// known, non-null value (feeds load balancer forwarding rules).
+					statecheck.ExpectKnownValue(
+						"xelon_device.test",
+						tfjsonpath.New("networks").AtSliceIndex(0).AtMapKey("ipv4_address"),
+						knownvalue.NotNull(),
+					),
 				},
 			},
 			// update and read

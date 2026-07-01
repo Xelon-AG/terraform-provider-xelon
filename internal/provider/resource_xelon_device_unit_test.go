@@ -49,6 +49,27 @@ func TestApplyDeviceNetworkIPAddresses(t *testing.T) {
 			},
 			want: []types.String{types.StringNull()},
 		},
+		"selects ipv4 address when ipv6 is also present": {
+			networks: []deviceNetworkResourceModel{
+				{ID: types.StringValue("net-1"), IPAddress: types.StringUnknown()},
+			},
+			deviceNetworks: []xelon.DeviceNetwork{
+				{ID: "net-1", IPAddresses: xelon.DeviceNetworkIPAddresses{
+					netip.MustParseAddr("2001:db8::1"),
+					netip.MustParseAddr("10.0.0.7"),
+				}},
+			},
+			want: []types.String{types.StringValue("10.0.0.7")},
+		},
+		"normalizes unknown to null when only ipv6 is present": {
+			networks: []deviceNetworkResourceModel{
+				{ID: types.StringValue("net-1"), IPAddress: types.StringUnknown()},
+			},
+			deviceNetworks: []xelon.DeviceNetwork{
+				{ID: "net-1", IPAddresses: xelon.DeviceNetworkIPAddresses{netip.MustParseAddr("2001:db8::1")}},
+			},
+			want: []types.String{types.StringNull()},
+		},
 		"matches multiple networks independently": {
 			networks: []deviceNetworkResourceModel{
 				{ID: types.StringValue("net-1"), IPAddress: types.StringUnknown()},
