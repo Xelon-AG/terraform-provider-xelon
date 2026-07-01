@@ -258,13 +258,12 @@ resource "xelon_device" "test" {
   display_name   = %[1]q
   hostname       = %[2]q
   memory         = 2
+  password       = "J78q3H"
+  swap_disk_size = 1
   template_id    = data.xelon_template.test.id
   tenant_id      = data.xelon_tenant.test.id
-  user_data      = <<-EOT
-#cloud-config
-hostname: %[2]s
-EOT
 
+  # no ipv4_address is set, so Xelon auto-assigns one on this cloud-init template
   networks = [
     {
       connected = true
@@ -275,8 +274,9 @@ EOT
 
 data "xelon_tenant" "test" {}
 
-# a cloud-init template (cloud_init_type = "cloud-init"), so selecting only the
-# network lets Xelon auto-assign the IP address instead of requiring a static one.
+# a cloud-init template (cloud_init_type = "cloud-init"); templates whose
+# cloud_init_type is cloud-init or ignition are the ones that auto-assign a
+# network IP address when a device is created without an explicit one.
 data "xelon_template" "test" {
   cloud_id    = "e96db9d92ec7"
   name        = "ubuntu-22-04-cloudinit"
