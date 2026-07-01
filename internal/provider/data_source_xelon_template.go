@@ -26,13 +26,14 @@ type templateDataSource struct {
 
 // templateDataSourceModel maps the template datasource schema data.
 type templateDataSourceModel struct {
-	Category    types.String `tfsdk:"category"`
-	CloudID     types.String `tfsdk:"cloud_id"`
-	Description types.String `tfsdk:"description"`
-	ID          types.String `tfsdk:"id"`
-	MostRecent  types.Bool   `tfsdk:"most_recent"`
-	Name        types.String `tfsdk:"name"`
-	Type        types.String `tfsdk:"type"`
+	Category      types.String `tfsdk:"category"`
+	CloudID       types.String `tfsdk:"cloud_id"`
+	CloudInitType types.String `tfsdk:"cloud_init_type"`
+	Description   types.String `tfsdk:"description"`
+	ID            types.String `tfsdk:"id"`
+	MostRecent    types.Bool   `tfsdk:"most_recent"`
+	Name          types.String `tfsdk:"name"`
+	Type          types.String `tfsdk:"type"`
 }
 
 func NewTemplateDataSource() datasource.DataSource {
@@ -57,6 +58,12 @@ The template data source provides information about an existing template.
 				MarkdownDescription: "The ID of the cloud.",
 				Computed:            true,
 				Optional:            true,
+			},
+			"cloud_init_type": schema.StringAttribute{
+				MarkdownDescription: "The cloud-init type of the template (e.g. `cloud-init`, `none`). " +
+					"Templates with a cloud-init type auto-assign a network IP address when a device is " +
+					"created without an explicit one.",
+				Computed: true,
 			},
 			"description": schema.StringAttribute{
 				MarkdownDescription: "The template description.",
@@ -148,6 +155,7 @@ func (d *templateDataSource) Read(ctx context.Context, request datasource.ReadRe
 		// map response body to attributes
 		data.Category = types.StringValue(template.Category)
 		data.CloudID = types.StringValue(template.CloudID)
+		data.CloudInitType = types.StringValue(template.CloudInitType)
 		data.Description = types.StringValue(template.Description)
 		data.ID = types.StringValue(template.ID)
 		data.Name = types.StringValue(template.Name)
@@ -208,6 +216,7 @@ func (d *templateDataSource) Read(ctx context.Context, request datasource.ReadRe
 		// map response body to attributes
 		data.Category = types.StringValue(template.Category)
 		data.CloudID = types.StringValue(template.CloudID)
+		data.CloudInitType = types.StringValue(template.CloudInitType)
 		data.Description = types.StringValue(template.Description)
 		data.ID = types.StringValue(template.ID)
 		data.Name = types.StringValue(template.Name)

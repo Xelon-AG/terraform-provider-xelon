@@ -50,5 +50,6 @@ data "xelon_template" "debian" {
 ### Read-Only
 
 - `category` (String) The category of the template.
+- `cloud_init_type` (String) The cloud-init type of the template (e.g. `cloud-init`, `none`). Templates with a cloud-init type auto-assign a network IP address when a device is created without an explicit one.
 - `description` (String) The template description.
 - `type` (String) The type of the template.

@@ -193,6 +193,13 @@ func TestAccResourceXelonDevice_autoAssignedIPAddress(t *testing.T) {
 			{
 				Config: testAccResourceXelonDeviceAutoAssignedIPAddressConfig(displayName, hostname),
 				ConfigStateChecks: []statecheck.StateCheck{
+					// guard: the test is meaningful only against a real cloud-init template,
+					// since that is what triggers IP auto-assignment.
+					statecheck.ExpectKnownValue(
+						"data.xelon_template.test",
+						tfjsonpath.New("cloud_init_type"),
+						knownvalue.StringExact("cloud-init"),
+					),
 					statecheck.ExpectKnownValue(
 						"xelon_device.test",
 						tfjsonpath.New("id"),
