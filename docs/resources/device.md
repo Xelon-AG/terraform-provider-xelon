@@ -79,5 +79,5 @@ Required:
 Optional:
 
 - `connected` (Boolean) Whether the network should automatically connect when the device powers on.
-- `ipv4_address` (String) The static IP address for the network connection.
+- `ipv4_address` (String) The IPv4 address for the network connection. Set it to request a static IP address; when omitted, the IP address assigned by Xelon (including auto-assigned ones) is read back into state.
 - `ipv4_address_id` (String) The ID of the static IP address for the network connection.

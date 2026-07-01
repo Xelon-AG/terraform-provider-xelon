@@ -168,8 +168,14 @@ Devices are the virtual machines that run your applications.
 							Required:            true,
 						},
 						"ipv4_address": schema.StringAttribute{
-							MarkdownDescription: "The static IP address for the network connection.",
-							Optional:            true,
+							MarkdownDescription: "The IPv4 address for the network connection. Set it to request a " +
+								"static IP address; when omitted, the IP address assigned by Xelon (including " +
+								"auto-assigned ones) is read back into state.",
+							Optional: true,
+							Computed: true,
+							PlanModifiers: []planmodifier.String{
+								stringplanmodifier.UseStateForUnknown(),
+							},
 						},
 						"ipv4_address_id": schema.StringAttribute{
 							MarkdownDescription: "The ID of the static IP address for the network connection.",
@@ -367,6 +373,15 @@ func (r *deviceResource) Create(ctx context.Context, request resource.CreateRequ
 	data.Memory = types.Int64Value(int64(device.RAM))
 	data.MemoryHotPlug = types.BoolValue(device.RAMHotAddEnabled)
 
+	tflog.Debug(ctx, "Getting device network info", map[string]any{"device_id": deviceID})
+	deviceNetworks, _, err := r.client.Devices.GetNetworkInfo(ctx, deviceID)
+	if err != nil {
+		response.Diagnostics.AddError("Unable to get device network info", err.Error())
+		return
+	}
+	tflog.Debug(ctx, "Got device network info", map[string]any{"device_id": deviceID, "count": len(deviceNetworks)})
+	data.Networks = applyDeviceNetworkIPAddresses(data.Networks, deviceNetworks)
+
 	diags = response.State.Set(ctx, &data)
 	response.Diagnostics.Append(diags...)
 }
@@ -412,6 +427,15 @@ func (r *deviceResource) Read(ctx context.Context, request resource.ReadRequest,
 	data.ID = types.StringValue(device.ID)
 	data.Memory = types.Int64Value(int64(device.RAM))
 	data.MemoryHotPlug = types.BoolValue(device.RAMHotAddEnabled)
+
+	tflog.Debug(ctx, "Getting device network info", map[string]any{"device_id": deviceID})
+	deviceNetworks, _, err := r.client.Devices.GetNetworkInfo(ctx, deviceID)
+	if err != nil {
+		response.Diagnostics.AddError("Unable to get device network info", err.Error())
+		return
+	}
+	tflog.Debug(ctx, "Got device network info", map[string]any{"device_id": deviceID, "count": len(deviceNetworks)})
+	data.Networks = applyDeviceNetworkIPAddresses(data.Networks, deviceNetworks)
 
 	diags = response.State.Set(ctx, &data)
 	response.Diagnostics.Append(diags...)
@@ -695,6 +719,42 @@ func (r *deviceResource) ModifyPlan(ctx context.Context, request resource.Modify
 			`Attribute "swap_disk_size" must be specified when "user_data" is not set.`,
 		)
 	}
+}
+
+// applyDeviceNetworkIPAddresses fills the ipv4_address attribute of each configured network
+// with the IPv4 address assigned by Xelon, matching entries by network ID. This makes
+// auto-assigned IP addresses readable from state, e.g. to feed load balancer forwarding rules.
+// Statically configured addresses are preserved; entries left without a value are normalized
+// to null so no unknown value remains after apply.
+func applyDeviceNetworkIPAddresses(networks []deviceNetworkResourceModel, deviceNetworks []xelon.DeviceNetwork) []deviceNetworkResourceModel {
+	ipAddressByNetworkID := make(map[string]string, len(deviceNetworks))
+	for _, deviceNetwork := range deviceNetworks {
+		if ipAddress, ok := firstIPv4Address(deviceNetwork.IPAddresses); ok {
+			ipAddressByNetworkID[deviceNetwork.ID] = ipAddress
+		}
+	}
+
+	for i := range networks {
+		if ipAddress, ok := ipAddressByNetworkID[networks[i].ID.ValueString()]; ok {
+			networks[i].IPAddress = types.StringValue(ipAddress)
+		} else if networks[i].IPAddress.IsUnknown() {
+			networks[i].IPAddress = types.StringNull()
+		}
+	}
+
+	return networks
+}
+
+// firstIPv4Address returns the first IPv4 address from the given list, since the
+// ipv4_address attribute only tracks IPv4. IPv6 addresses are skipped.
+func firstIPv4Address(ipAddresses xelon.DeviceNetworkIPAddresses) (string, bool) {
+	for _, ipAddress := range ipAddresses {
+		if ipAddress.Is4() {
+			return ipAddress.String(), true
+		}
+	}
+
+	return "", false
 }
 
 // findDiskIDBySize looks up for xelon.DeviceStorage by size. If multiple disks are found,

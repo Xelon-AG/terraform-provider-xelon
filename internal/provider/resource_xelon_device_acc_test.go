@@ -180,6 +180,45 @@ func TestAccResourceXelonDevice(t *testing.T) {
 	})
 }
 
+func TestAccResourceXelonDevice_autoAssignedIPAddress(t *testing.T) {
+	hostname := fmt.Sprintf("%s-%s", accTestPrefix, acctest.RandString(10))
+	displayName := hostname
+
+	resource.Test(t, resource.TestCase{
+		PreCheck:                 func() { testAccPreCheck(t) },
+		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
+		Steps: []resource.TestStep{
+			// create a cloud-init device selecting only the network, so Xelon
+			// auto-assigns the IP address, and read it back into state
+			{
+				Config: testAccResourceXelonDeviceAutoAssignedIPAddressConfig(displayName, hostname),
+				ConfigStateChecks: []statecheck.StateCheck{
+					// guard: the test is meaningful only against a real cloud-init template,
+					// since that is what triggers IP auto-assignment.
+					statecheck.ExpectKnownValue(
+						"data.xelon_template.test",
+						tfjsonpath.New("cloud_init_type"),
+						knownvalue.StringExact("cloud-init"),
+					),
+					statecheck.ExpectKnownValue(
+						"xelon_device.test",
+						tfjsonpath.New("id"),
+						knownvalue.NotNull(),
+					),
+					// the network is created without an explicit ipv4_address, so this
+					// asserts the auto-assigned address is read back into state as a
+					// known, non-null value (e.g. to feed load balancer forwarding rules).
+					statecheck.ExpectKnownValue(
+						"xelon_device.test",
+						tfjsonpath.New("networks").AtSliceIndex(0).AtMapKey("ipv4_address"),
+						knownvalue.NotNull(),
+					),
+				},
+			},
+		},
+	})
+}
+
 func testAccResourceXelonDeviceConfig(displayName, hostname string, diskSize int) string {
 	return fmt.Sprintf(`
 resource "xelon_device" "test" {
@@ -209,4 +248,39 @@ data "xelon_template" "test" {
   most_recent = true
 }
 `, displayName, hostname, diskSize)
+}
+
+func testAccResourceXelonDeviceAutoAssignedIPAddressConfig(displayName, hostname string) string {
+	return fmt.Sprintf(`
+resource "xelon_device" "test" {
+  cpu_core_count = 2
+  disk_size      = 10
+  display_name   = %[1]q
+  hostname       = %[2]q
+  memory         = 2
+  password       = "J78q3H"
+  swap_disk_size = 1
+  template_id    = data.xelon_template.test.id
+  tenant_id      = data.xelon_tenant.test.id
+
+  # no ipv4_address is set, so Xelon auto-assigns one on this cloud-init template
+  networks = [
+    {
+      connected = true
+      id        = "654871d16146"
+    }
+  ]
+}
+
+data "xelon_tenant" "test" {}
+
+# a cloud-init template (cloud_init_type = "cloud-init"); templates whose
+# cloud_init_type is cloud-init or ignition are the ones that auto-assign a
+# network IP address when a device is created without an explicit one.
+data "xelon_template" "test" {
+  cloud_id    = "e96db9d92ec7"
+  name        = "ubuntu-22-04-cloudinit"
+  most_recent = true
+}
+`, displayName, hostname)
 }
