@@ -268,9 +268,11 @@ EOT
 
 data "xelon_tenant" "test" {}
 
+# a cloud-init template (cloud_init_type = "cloud-init"), so selecting only the
+# network lets Xelon auto-assign the IP address instead of requiring a static one.
 data "xelon_template" "test" {
   cloud_id    = "e96db9d92ec7"
-  name        = "Debian 11"
+  name        = "ubuntu-22-04-cloudinit"
   most_recent = true
 }
 `, displayName, hostname)
