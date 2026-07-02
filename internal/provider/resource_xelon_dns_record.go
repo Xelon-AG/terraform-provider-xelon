@@ -54,7 +54,7 @@ func (r *dnsRecordResource) Metadata(_ context.Context, _ resource.MetadataReque
 func (r *dnsRecordResource) Schema(_ context.Context, _ resource.SchemaRequest, response *resource.SchemaResponse) {
 	response.Schema = schema.Schema{
 		MarkdownDescription: `
-The DNS record resource allows you to manage flat DNS records in a Xelon DNS zone.
+The DNS record resource allows you to manage DNS records in a Xelon DNS zone.
 
 Supported record types in v0: A, AAAA, CNAME, TXT, NS, ALIAS, PTR.
 Record types that require additional structured fields, such as MX, SRV, CAA, RP, SSHFP, and TLSA, are not supported yet.
@@ -76,7 +76,7 @@ Record types that require additional structured fields, such as MX, SRV, CAA, RP
 				},
 			},
 			"name": schema.StringAttribute{
-				MarkdownDescription: `DNS record name, such as "www", "@", or "_sip._tcp".`,
+				MarkdownDescription: `DNS record name relative to the zone, such as "www", "@", or "_sip._tcp". Do not include the zone name.`,
 				Required:            true,
 				Validators: []validator.String{
 					stringvalidator.LengthAtLeast(1),
