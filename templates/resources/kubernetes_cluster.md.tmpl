@@ -10,6 +10,10 @@ description: |-
 
 {{ .Description | trimspace }}
 
+-> High availability can be configured independently for the control plane and load balancer
+when the cluster is created. After creation, only a full upgrade to high availability is supported,
+which enables HA for both components. High availability cannot be disabled on an existing cluster.
+
 ## Example Usage
 
 ### Minimal example

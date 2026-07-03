@@ -107,10 +107,11 @@ XKS is a Kubernetes service with a fully managed control plane and high availabi
 						Default:             int64default.StaticInt64(50),
 					},
 					"high_availability_enabled": schema.BoolAttribute{
-						MarkdownDescription: "Whether to enable high availability (HA) mode. Defaults to `true`.",
-						Optional:            true,
-						Computed:            true,
-						Default:             booldefault.StaticBool(true),
+						MarkdownDescription: "Whether to enable high availability (HA) for the control plane. Defaults to `true`. " +
+							"After creation, HA can only be enabled through a full-cluster upgrade affecting both the control plane and load balancer. Disabling HA is not supported.",
+						Optional: true,
+						Computed: true,
+						Default:  booldefault.StaticBool(true),
 					},
 					"memory": schema.Int64Attribute{
 						MarkdownDescription: "The amount of RAM in GB to allocate to control plane nodes. Defaults to `4`.",
@@ -153,10 +154,11 @@ XKS is a Kubernetes service with a fully managed control plane and high availabi
 						Default:             int64default.StaticInt64(50),
 					},
 					"high_availability_enabled": schema.BoolAttribute{
-						MarkdownDescription: "Whether to enable high availability (HA) mode. Defaults to `true`.",
-						Optional:            true,
-						Computed:            true,
-						Default:             booldefault.StaticBool(true),
+						MarkdownDescription: "Whether to enable high availability (HA) for the load balancer. Defaults to `true`. " +
+							"After creation, HA can only be enabled through a full-cluster upgrade affecting both the control plane and load balancer. Disabling HA is not supported.",
+						Optional: true,
+						Computed: true,
+						Default:  booldefault.StaticBool(true),
 					},
 					"memory": schema.Int64Attribute{
 						MarkdownDescription: "The amount of RAM in GB to allocate to the load balancer. Defaults to `4`.",

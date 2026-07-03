@@ -12,6 +12,10 @@ description: |-
 The kubernetes cluster resource allows you to manage Xelon Kubernetes (XKS) cluster.
 XKS is a Kubernetes service with a fully managed control plane and high availability.
 
+-> High availability can be configured independently for the control plane and load balancer
+when the cluster is created. After creation, only a full upgrade to high availability is supported,
+which enables HA for both components. High availability cannot be disabled on an existing cluster.
+
 ## Example Usage
 
 ### Minimal example
@@ -82,7 +86,7 @@ Optional:
 
 - `cpu_core_count` (Number) The number of CPU cores to allocate to control plane nodes. Defaults to `2`.
 - `disk_size` (Number) The size of the primary disk in GB. Defaults to `50`.
-- `high_availability_enabled` (Boolean) Whether to enable high availability (HA) mode. Defaults to `true`.
+- `high_availability_enabled` (Boolean) Whether to enable high availability (HA) for the control plane. Defaults to `true`. After creation, HA can only be enabled through a full-cluster upgrade affecting both the control plane and load balancer. Disabling HA is not supported.
 - `memory` (Number) The amount of RAM in GB to allocate to control plane nodes. Defaults to `4`.
 
 
@@ -93,7 +97,7 @@ Optional:
 
 - `cpu_core_count` (Number) The number of CPU cores to allocate to the load balancer. Defaults to `2`.
 - `disk_size` (Number) The size of the primary disk in GB. Defaults to `50`.
-- `high_availability_enabled` (Boolean) Whether to enable high availability (HA) mode. Defaults to `true`.
+- `high_availability_enabled` (Boolean) Whether to enable high availability (HA) for the load balancer. Defaults to `true`. After creation, HA can only be enabled through a full-cluster upgrade affecting both the control plane and load balancer. Disabling HA is not supported.
 - `memory` (Number) The amount of RAM in GB to allocate to the load balancer. Defaults to `4`.
 
 
