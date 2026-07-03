@@ -1,4 +1,24 @@
 
+## v1.6.0 (2026-07-04)
+### Bug Fixes
+* **resource/xelon_device**: failed update for password field
+* **resource/xelon_kubernetes_cluster**: fix high availability lifecycle handling
+### Documentation
+* **resource/xelon_dns_record**: update documentation with examples
+* **resource/xelon_kubernetes_cluster**: describe high availability behavior
+### Features
+* **resource/xelon_dns_record**: add resource to manage dns records
+* **resource/xelon_object_storage_access_key**: add resource to manage object storage access keys
+* **resource/xelon_object_storage_user**: add resource to manage object storage users
+### Maintaining
+* **deps**: bump github.com/Xelon-AG/xelon-sdk-go from 1.13.1 to 1.13.2
+* **deps**: bump the github-actions group across 1 directory with 3 updates
+* **deps**: upgrade xelon-sdk-go to v1.13.1
+* **deps**: bump github.com/golangci/golangci-lint/v2 in /tools
+* **deps**: bump the github-actions group with 2 updates
+* **gh-actions**: run acceptance tests parallel for all terraform version matrix
+* **gh-actions**: pin gh-actions to specific versions via hash
+
 ## v1.5.1 (2026-06-15)
 ### Bug Fixes
 * **datasource/xelon_kubernetes_cluster**: add data source to fetch k8s and talos configurations
