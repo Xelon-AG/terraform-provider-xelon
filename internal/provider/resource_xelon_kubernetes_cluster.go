@@ -24,8 +24,9 @@ import (
 )
 
 var (
-	_ resource.Resource              = (*kubernetesClusterResource)(nil)
-	_ resource.ResourceWithConfigure = (*kubernetesClusterResource)(nil)
+	_ resource.Resource               = (*kubernetesClusterResource)(nil)
+	_ resource.ResourceWithConfigure  = (*kubernetesClusterResource)(nil)
+	_ resource.ResourceWithModifyPlan = (*kubernetesClusterResource)(nil)
 )
 
 const (
@@ -57,6 +58,15 @@ type kubernetesClusterNodeSpecResourceModel struct {
 	Memory                  types.Int64 `tfsdk:"memory"`
 }
 
+type kubernetesClusterHATransition int
+
+const (
+	kubernetesClusterHAUnchanged kubernetesClusterHATransition = iota
+	kubernetesClusterHAUpgrade
+	kubernetesClusterHADowngrade
+	kubernetesClusterHAUnknown
+)
+
 func NewKubernetesClusterResource() resource.Resource { return &kubernetesClusterResource{} }
 
 func (r *kubernetesClusterResource) Metadata(_ context.Context, _ resource.MetadataRequest, response *resource.MetadataResponse) {
@@ -80,8 +90,8 @@ XKS is a Kubernetes service with a fully managed control plane and high availabi
 				Optional:            true,
 				Computed:            true,
 				Default: objectdefault.StaticValue(types.ObjectValueMust(
-					nodeSpecAttributeTypes(),
-					nodeSpecDefaultValues(),
+					kubernetesClusterNodeSpecAttributeTypes(),
+					kubernetesClusterNodeSpecDefaultValues(),
 				)),
 				Attributes: map[string]schema.Attribute{
 					"cpu_core_count": schema.Int64Attribute{
@@ -126,8 +136,8 @@ XKS is a Kubernetes service with a fully managed control plane and high availabi
 				Optional:            true,
 				Computed:            true,
 				Default: objectdefault.StaticValue(types.ObjectValueMust(
-					nodeSpecAttributeTypes(),
-					nodeSpecDefaultValues(),
+					kubernetesClusterNodeSpecAttributeTypes(),
+					kubernetesClusterNodeSpecDefaultValues(),
 				)),
 				Attributes: map[string]schema.Attribute{
 					"cpu_core_count": schema.Int64Attribute{
@@ -235,7 +245,6 @@ func (r *kubernetesClusterResource) Create(ctx context.Context, request resource
 	createRequest.ControlPlaneCPUCores = int(controlPlaneModel.CPUCoreCount.ValueInt64())
 	createRequest.ControlPlaneDiskSize = int(controlPlaneModel.DiskSize.ValueInt64())
 	createRequest.ControlPlaneRAM = int(controlPlaneModel.Memory.ValueInt64())
-	createRequest.ControlPlaneCPUCores = int(controlPlaneModel.CPUCoreCount.ValueInt64())
 	if controlPlaneModel.HighAvailabilityEnabled.ValueBool() {
 		createRequest.ControlPlaneType = "production"
 	} else {
@@ -251,7 +260,6 @@ func (r *kubernetesClusterResource) Create(ctx context.Context, request resource
 	createRequest.LoadBalancerCPUCores = int(loadBalancerModel.CPUCoreCount.ValueInt64())
 	createRequest.LoadBalancerDiskSize = int(loadBalancerModel.DiskSize.ValueInt64())
 	createRequest.LoadBalancerRAM = int(loadBalancerModel.Memory.ValueInt64())
-	createRequest.LoadBalancerCPUCores = int(loadBalancerModel.CPUCoreCount.ValueInt64())
 	if loadBalancerModel.HighAvailabilityEnabled.ValueBool() {
 		createRequest.LoadBalancerType = "production"
 	} else {
@@ -310,7 +318,7 @@ func (r *kubernetesClusterResource) Create(ctx context.Context, request resource
 		response.Diagnostics.AddError("Unable to get Kubernetes cluster load balancer", err.Error())
 		return
 	}
-	tflog.Debug(ctx, "Got Kubernetes load balancer data", map[string]any{"data": controlPlane})
+	tflog.Debug(ctx, "Got Kubernetes load balancer data", map[string]any{"data": loadBalancer})
 
 	// map response body to attributes
 	response.Diagnostics.Append(data.fromAPI(ctx, kubernetesCluster, controlPlane, loadBalancer)...)
@@ -351,7 +359,7 @@ func (r *kubernetesClusterResource) Read(ctx context.Context, request resource.R
 		response.Diagnostics.AddError("Unable to get Kubernetes cluster load balancer", err.Error())
 		return
 	}
-	tflog.Debug(ctx, "Got Kubernetes load balancer data", map[string]any{"data": controlPlane})
+	tflog.Debug(ctx, "Got Kubernetes load balancer data", map[string]any{"data": loadBalancer})
 
 	// map response body to attributes
 	response.Diagnostics.Append(data.fromAPI(ctx, kubernetesCluster, controlPlane, loadBalancer)...)
@@ -378,9 +386,29 @@ func (r *kubernetesClusterResource) Update(ctx context.Context, request resource
 	if response.Diagnostics.HasError() {
 		return
 	}
+	var planLoadBalancerModel kubernetesClusterNodeSpecResourceModel
+	response.Diagnostics.Append(plan.LoadBalancer.As(ctx, &planLoadBalancerModel, basetypes.ObjectAsOptions{})...)
+	if response.Diagnostics.HasError() {
+		return
+	}
+	var stateLoadBalancerModel kubernetesClusterNodeSpecResourceModel
+	response.Diagnostics.Append(state.LoadBalancer.As(ctx, &stateLoadBalancerModel, basetypes.ObjectAsOptions{})...)
+	if response.Diagnostics.HasError() {
+		return
+	}
+
+	response.Diagnostics.Append(validateKubernetesClusterHAChanges(
+		planControlPlaneModel,
+		stateControlPlaneModel,
+		planLoadBalancerModel,
+		stateLoadBalancerModel,
+	)...)
+	if response.Diagnostics.HasError() {
+		return
+	}
 
 	// configure timeout
-	updateTimeout, diags := plan.Timeouts.Update(ctx, defaultKubernetesNodePoolTimeout)
+	updateTimeout, diags := plan.Timeouts.Update(ctx, defaultKubernetesClusterTimeout)
 	response.Diagnostics.Append(diags...)
 	if response.Diagnostics.HasError() {
 		return
@@ -390,8 +418,52 @@ func (r *kubernetesClusterResource) Update(ctx context.Context, request resource
 
 	kubernetesClusterID := state.ID.ValueString()
 
-	if !planControlPlaneModel.HighAvailabilityEnabled.Equal(stateControlPlaneModel.HighAvailabilityEnabled) {
-		tflog.Warn(ctx, "Converting control plane to high-availability mode is not supported yet")
+	controlPlaneHATransition := kubernetesClusterHAChange(
+		planControlPlaneModel.HighAvailabilityEnabled,
+		stateControlPlaneModel.HighAvailabilityEnabled,
+	)
+	loadBalancerHATransition := kubernetesClusterHAChange(
+		planLoadBalancerModel.HighAvailabilityEnabled,
+		stateLoadBalancerModel.HighAvailabilityEnabled,
+	)
+	if controlPlaneHATransition == kubernetesClusterHAUpgrade || loadBalancerHATransition == kubernetesClusterHAUpgrade {
+		// validation above ensures the planned topology is full HA.
+		tflog.Debug(ctx, "upgrading Kubernetes cluster high availability", map[string]any{
+			"kubernetes_cluster_id": kubernetesClusterID,
+		})
+
+		tflog.Trace(ctx, "upgrading Kubernetes cluster high availability via API", map[string]any{
+			"kubernetes_cluster_id": kubernetesClusterID,
+		})
+		_, err := r.client.Kubernetes.UpgradeHighAvailability(ctx, kubernetesClusterID)
+		if err != nil {
+			response.Diagnostics.AddError("Unable to upgrade Kubernetes cluster to high availability", err.Error())
+			return
+		}
+
+		tflog.Info(ctx, "waiting for Kubernetes cluster to be ready", map[string]any{"kubernetes_cluster_id": kubernetesClusterID})
+		err = helper.WaitKubernetesClusterStatusReady(ctx, r.client, kubernetesClusterID, updateTimeout)
+		if err != nil {
+			// set id to state that the resource will be marked as tainted
+			response.Diagnostics.Append(response.State.SetAttribute(ctx, path.Root("id"), kubernetesClusterID)...)
+			response.Diagnostics.AddError("Unable to wait for Kubernetes cluster to be ready", err.Error())
+			return
+		}
+		tflog.Info(ctx, "Kubernetes cluster is ready", map[string]any{"kubernetes_cluster_id": kubernetesClusterID})
+
+		tflog.Info(ctx, "waiting for Kubernetes cluster to be healthy", map[string]any{"kubernetes_cluster_id": kubernetesClusterID})
+		err = helper.WaitKubernetesClusterControlPlaneStatusHealthy(ctx, r.client, kubernetesClusterID, updateTimeout)
+		if err != nil {
+			// set id to state that the resource will be marked as tainted
+			response.Diagnostics.Append(response.State.SetAttribute(ctx, path.Root("id"), kubernetesClusterID)...)
+			response.Diagnostics.AddError("Unable to wait for Kubernetes cluster to be healthy", err.Error())
+			return
+		}
+		tflog.Info(ctx, "Kubernetes cluster is healthy", map[string]any{"kubernetes_cluster_id": kubernetesClusterID})
+
+		tflog.Debug(ctx, "upgraded Kubernetes cluster high availability", map[string]any{
+			"kubernetes_cluster_id": kubernetesClusterID,
+		})
 	}
 
 	if !planControlPlaneModel.CPUCoreCount.Equal(stateControlPlaneModel.CPUCoreCount) ||
@@ -449,7 +521,7 @@ func (r *kubernetesClusterResource) Update(ctx context.Context, request resource
 		response.Diagnostics.AddError("Unable to get Kubernetes cluster load balancer", err.Error())
 		return
 	}
-	tflog.Debug(ctx, "Got Kubernetes load balancer data", map[string]any{"data": controlPlane})
+	tflog.Debug(ctx, "Got Kubernetes load balancer data", map[string]any{"data": loadBalancer})
 
 	// map response body to attributes
 	response.Diagnostics.Append(plan.fromAPI(ctx, kubernetesCluster, controlPlane, loadBalancer)...)
@@ -477,22 +549,36 @@ func (r *kubernetesClusterResource) Delete(ctx context.Context, request resource
 	tflog.Debug(ctx, "Deleted Kubernetes cluster", map[string]any{"kubernetes_cluster_id": kubernetesClusterID})
 }
 
-func nodeSpecAttributeTypes() map[string]attr.Type {
-	return map[string]attr.Type{
-		"cpu_core_count":            types.Int64Type,
-		"disk_size":                 types.Int64Type,
-		"high_availability_enabled": types.BoolType,
-		"memory":                    types.Int64Type,
+func (r *kubernetesClusterResource) ModifyPlan(ctx context.Context, request resource.ModifyPlanRequest, response *resource.ModifyPlanResponse) {
+	if request.Plan.Raw.IsNull() || request.State.Raw.IsNull() {
+		return
 	}
-}
 
-func nodeSpecDefaultValues() map[string]attr.Value {
-	return map[string]attr.Value{
-		"cpu_core_count":            types.Int64Value(2),
-		"disk_size":                 types.Int64Value(50),
-		"high_availability_enabled": types.BoolValue(true),
-		"memory":                    types.Int64Value(4),
+	var plan, state kubernetesClusterResourceModel
+	response.Diagnostics.Append(request.Plan.Get(ctx, &plan)...)
+	response.Diagnostics.Append(request.State.Get(ctx, &state)...)
+	if response.Diagnostics.HasError() {
+		return
 	}
+
+	planControlPlane, diags := kubernetesClusterNodeSpecFromObject(ctx, plan.ControlPlane)
+	response.Diagnostics.Append(diags...)
+	stateControlPlane, diags := kubernetesClusterNodeSpecFromObject(ctx, state.ControlPlane)
+	response.Diagnostics.Append(diags...)
+	planLoadBalancer, diags := kubernetesClusterNodeSpecFromObject(ctx, plan.LoadBalancer)
+	response.Diagnostics.Append(diags...)
+	stateLoadBalancer, diags := kubernetesClusterNodeSpecFromObject(ctx, state.LoadBalancer)
+	response.Diagnostics.Append(diags...)
+	if response.Diagnostics.HasError() {
+		return
+	}
+
+	response.Diagnostics.Append(validateKubernetesClusterHAChanges(
+		planControlPlane,
+		stateControlPlane,
+		planLoadBalancer,
+		stateLoadBalancer,
+	)...)
 }
 
 func (m *kubernetesClusterResourceModel) fromAPI(ctx context.Context, kubernetesCluster *xelon.KubernetesCluster, controlPlane *xelon.KubernetesClusterControlPlane, loadBalancer *xelon.KubernetesClusterLoadBalancer) diag.Diagnostics {
@@ -507,7 +593,7 @@ func (m *kubernetesClusterResourceModel) fromAPI(ctx context.Context, kubernetes
 	}
 	m.CloudID = types.StringValue(cloudID)
 
-	controlPlaneModel, d := types.ObjectValueFrom(ctx, nodeSpecAttributeTypes(), kubernetesClusterNodeSpecResourceModel{
+	controlPlaneModel, d := types.ObjectValueFrom(ctx, kubernetesClusterNodeSpecAttributeTypes(), kubernetesClusterNodeSpecResourceModel{
 		CPUCoreCount:            types.Int64Value(int64(controlPlane.CPUCores)),
 		DiskSize:                types.Int64Value(int64(controlPlane.DiskSize)),
 		HighAvailabilityEnabled: types.BoolValue(len(controlPlane.Nodes) > 1),
@@ -516,7 +602,7 @@ func (m *kubernetesClusterResourceModel) fromAPI(ctx context.Context, kubernetes
 	diags.Append(d...)
 	m.ControlPlane = controlPlaneModel
 
-	loadBalancerModel, d := types.ObjectValueFrom(ctx, nodeSpecAttributeTypes(), kubernetesClusterNodeSpecResourceModel{
+	loadBalancerModel, d := types.ObjectValueFrom(ctx, kubernetesClusterNodeSpecAttributeTypes(), kubernetesClusterNodeSpecResourceModel{
 		CPUCoreCount:            types.Int64Value(int64(loadBalancer.CPUCores)),
 		DiskSize:                types.Int64Value(int64(loadBalancer.DiskSize)),
 		HighAvailabilityEnabled: types.BoolValue(len(loadBalancer.Instances) > 1),
@@ -526,4 +612,105 @@ func (m *kubernetesClusterResourceModel) fromAPI(ctx context.Context, kubernetes
 	m.LoadBalancer = loadBalancerModel
 
 	return diags
+}
+
+func kubernetesClusterNodeSpecAttributeTypes() map[string]attr.Type {
+	return map[string]attr.Type{
+		"cpu_core_count":            types.Int64Type,
+		"disk_size":                 types.Int64Type,
+		"high_availability_enabled": types.BoolType,
+		"memory":                    types.Int64Type,
+	}
+}
+
+func kubernetesClusterNodeSpecDefaultValues() map[string]attr.Value {
+	return map[string]attr.Value{
+		"cpu_core_count":            types.Int64Value(2),
+		"disk_size":                 types.Int64Value(50),
+		"high_availability_enabled": types.BoolValue(true),
+		"memory":                    types.Int64Value(4),
+	}
+}
+
+func kubernetesClusterNodeSpecFromObject(ctx context.Context, value types.Object) (kubernetesClusterNodeSpecResourceModel, diag.Diagnostics) {
+	var diags diag.Diagnostics
+
+	model := kubernetesClusterNodeSpecResourceModel{
+		CPUCoreCount:            types.Int64Unknown(),
+		DiskSize:                types.Int64Unknown(),
+		HighAvailabilityEnabled: types.BoolUnknown(),
+		Memory:                  types.Int64Unknown(),
+	}
+	if value.IsNull() || value.IsUnknown() {
+		return model, diags
+	}
+
+	diags.Append(value.As(ctx, &model, basetypes.ObjectAsOptions{})...)
+	return model, diags
+}
+
+func validateKubernetesClusterHAChanges(planControlPlane, stateControlPlane, planLoadBalancer, stateLoadBalancer kubernetesClusterNodeSpecResourceModel) diag.Diagnostics {
+	var diags diag.Diagnostics
+
+	planControlPlaneHA := planControlPlane.HighAvailabilityEnabled
+	planLoadBalancerHA := planLoadBalancer.HighAvailabilityEnabled
+	controlPlaneTransition := kubernetesClusterHAChange(
+		planControlPlaneHA,
+		stateControlPlane.HighAvailabilityEnabled,
+	)
+	loadBalancerTransition := kubernetesClusterHAChange(
+		planLoadBalancerHA,
+		stateLoadBalancer.HighAvailabilityEnabled,
+	)
+
+	if controlPlaneTransition == kubernetesClusterHADowngrade {
+		diags.AddAttributeError(
+			path.Root("control_plane").AtName("high_availability_enabled"),
+			"Downgrading control plane high availability is not supported",
+			"High availability cannot be changed from true to false for an existing Kubernetes cluster.",
+		)
+	}
+
+	if loadBalancerTransition == kubernetesClusterHADowngrade {
+		diags.AddAttributeError(
+			path.Root("load_balancer").AtName("high_availability_enabled"),
+			"Downgrading load balancer high availability is not supported",
+			"High availability cannot be changed from true to false for an existing Kubernetes cluster.",
+		)
+	}
+
+	partialUpgradeDetail := "High availability upgrades enable both the control plane and load balancer. Set both high_availability_enabled values to true to upgrade the cluster."
+	planControlPlaneHAKnown := !planControlPlaneHA.IsNull() && !planControlPlaneHA.IsUnknown()
+	planLoadBalancerHAKnown := !planLoadBalancerHA.IsNull() && !planLoadBalancerHA.IsUnknown()
+	if controlPlaneTransition == kubernetesClusterHAUpgrade && planLoadBalancerHAKnown && !planLoadBalancerHA.ValueBool() {
+		diags.AddAttributeError(
+			path.Root("control_plane").AtName("high_availability_enabled"),
+			"Partial Kubernetes high availability upgrade is not supported",
+			partialUpgradeDetail,
+		)
+	}
+	if loadBalancerTransition == kubernetesClusterHAUpgrade && planControlPlaneHAKnown && !planControlPlaneHA.ValueBool() {
+		diags.AddAttributeError(
+			path.Root("load_balancer").AtName("high_availability_enabled"),
+			"Partial Kubernetes high availability upgrade is not supported",
+			partialUpgradeDetail,
+		)
+	}
+
+	return diags
+}
+
+func kubernetesClusterHAChange(planValue, stateValue types.Bool) kubernetesClusterHATransition {
+	if planValue.IsNull() || planValue.IsUnknown() || stateValue.IsNull() || stateValue.IsUnknown() {
+		return kubernetesClusterHAUnknown
+	}
+
+	switch {
+	case !stateValue.ValueBool() && planValue.ValueBool():
+		return kubernetesClusterHAUpgrade
+	case stateValue.ValueBool() && !planValue.ValueBool():
+		return kubernetesClusterHADowngrade
+	default:
+		return kubernetesClusterHAUnchanged
+	}
 }
