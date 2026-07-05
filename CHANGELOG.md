@@ -1,4 +1,8 @@
 
+## v1.6.1 (2026-07-05)
+### Bug Fixes
+* **resource/xelon_object_storage_user**: align computed field name for region replication
+
 ## v1.6.0 (2026-07-04)
 ### Bug Fixes
 * **resource/xelon_device**: failed update for password field
