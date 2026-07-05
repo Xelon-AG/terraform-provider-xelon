@@ -44,5 +44,5 @@ resource "xelon_object_storage_user" "test" {
 ### Read-Only
 
 - `id` (String) The ID of the object storage user.
+- `region_replication_enabled` (Boolean) Whether region replication is enabled for the object storage user.
 - `s3_endpoints` (Set of String) The set of S3-compatible endpoint URLs that can be used to access object storage.
-- `zone_replication_enabled` (Boolean) Whether zone replication is enabled for the object storage user.

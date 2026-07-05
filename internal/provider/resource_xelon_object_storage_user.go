@@ -30,13 +30,13 @@ type objectStorageUserResource struct {
 
 // objectStorageUserResourceModel maps the object storage user resource schema data.
 type objectStorageUserResourceModel struct {
-	ID                     types.String `tfsdk:"id"`
-	Name                   types.String `tfsdk:"name"`
-	Region                 types.String `tfsdk:"region"`
-	S3Endpoints            types.Set    `tfsdk:"s3_endpoints"` // []types.String
-	StorageLimit           types.Int64  `tfsdk:"storage_limit"`
-	TenantID               types.String `tfsdk:"tenant_id"`
-	ZoneReplicationEnabled types.Bool   `tfsdk:"zone_replication_enabled"`
+	ID                       types.String `tfsdk:"id"`
+	Name                     types.String `tfsdk:"name"`
+	Region                   types.String `tfsdk:"region"`
+	RegionReplicationEnabled types.Bool   `tfsdk:"region_replication_enabled"`
+	S3Endpoints              types.Set    `tfsdk:"s3_endpoints"` // []types.String
+	StorageLimit             types.Int64  `tfsdk:"storage_limit"`
+	TenantID                 types.String `tfsdk:"tenant_id"`
 }
 
 func NewObjectStorageUserResource() resource.Resource {
@@ -77,6 +77,10 @@ Users are used to create access keys and manage access to Object Storage buckets
 					stringplanmodifier.RequiresReplace(),
 				},
 			},
+			"region_replication_enabled": schema.BoolAttribute{
+				MarkdownDescription: "Whether region replication is enabled for the object storage user.",
+				Computed:            true,
+			},
 			"s3_endpoints": schema.SetAttribute{
 				MarkdownDescription: "The set of S3-compatible endpoint URLs that can be used to access object storage.",
 				Computed:            true,
@@ -103,10 +107,6 @@ Users are used to create access keys and manage access to Object Storage buckets
 				Validators: []validator.String{
 					stringvalidator.LengthAtLeast(1),
 				},
-			},
-			"zone_replication_enabled": schema.BoolAttribute{
-				MarkdownDescription: "Whether zone replication is enabled for the object storage user.",
-				Computed:            true,
 			},
 		},
 	}
@@ -285,8 +285,8 @@ func (m *objectStorageUserResourceModel) fromAPI(ctx context.Context, objectStor
 	m.ID = types.StringValue(objectStorageUser.ID)
 	m.Name = types.StringValue(objectStorageUser.Name)
 	m.Region = types.StringValue(region)
+	m.RegionReplicationEnabled = types.BoolValue(objectStorageUser.RegionReplicationEnabled)
 	m.StorageLimit = types.Int64Value(int64(objectStorageUser.QuotaGB))
-	m.ZoneReplicationEnabled = types.BoolValue(objectStorageUser.ZoneReplicationEnabled)
 
 	if objectStorageUser.S3Endpoints == nil {
 		m.S3Endpoints = types.SetNull(types.StringType)

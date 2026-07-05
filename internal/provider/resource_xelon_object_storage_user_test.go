@@ -73,6 +73,11 @@ func TestAccResourceXelonObjectStorageUser(t *testing.T) {
 					),
 					statecheck.ExpectKnownValue(
 						"xelon_object_storage_user.test",
+						tfjsonpath.New("region_replication_enabled"),
+						knownvalue.NotNull(),
+					),
+					statecheck.ExpectKnownValue(
+						"xelon_object_storage_user.test",
 						tfjsonpath.New("s3_endpoints"),
 						knownvalue.NotNull(),
 					),
@@ -84,11 +89,6 @@ func TestAccResourceXelonObjectStorageUser(t *testing.T) {
 					statecheck.ExpectKnownValue(
 						"xelon_object_storage_user.test",
 						tfjsonpath.New("tenant_id"),
-						knownvalue.NotNull(),
-					),
-					statecheck.ExpectKnownValue(
-						"xelon_object_storage_user.test",
-						tfjsonpath.New("zone_replication_enabled"),
 						knownvalue.NotNull(),
 					),
 				},
@@ -114,6 +114,11 @@ func TestAccResourceXelonObjectStorageUser(t *testing.T) {
 					),
 					statecheck.ExpectKnownValue(
 						"xelon_object_storage_user.test",
+						tfjsonpath.New("region_replication_enabled"),
+						knownvalue.NotNull(),
+					),
+					statecheck.ExpectKnownValue(
+						"xelon_object_storage_user.test",
 						tfjsonpath.New("s3_endpoints"),
 						knownvalue.NotNull(),
 					),
@@ -125,11 +130,6 @@ func TestAccResourceXelonObjectStorageUser(t *testing.T) {
 					statecheck.ExpectKnownValue(
 						"xelon_object_storage_user.test",
 						tfjsonpath.New("tenant_id"),
-						knownvalue.NotNull(),
-					),
-					statecheck.ExpectKnownValue(
-						"xelon_object_storage_user.test",
-						tfjsonpath.New("zone_replication_enabled"),
 						knownvalue.NotNull(),
 					),
 				},
