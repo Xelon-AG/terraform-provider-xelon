@@ -697,6 +697,31 @@ func (r *deviceResource) ModifyPlan(ctx context.Context, request resource.Modify
 	}
 }
 
+func populateDeviceNetworkIPv4Addresses(networks []deviceNetworkResourceModel, deviceNetworks []xelon.DeviceNetwork) []deviceNetworkResourceModel {
+	for i := range networks {
+		networks[i].IPAddress = types.StringNull()
+		networkID := networks[i].ID.ValueString()
+
+		for _, deviceNetwork := range deviceNetworks {
+			if deviceNetwork.ID != networkID || !deviceNetwork.Connected {
+				continue
+			}
+
+			for _, ipAddress := range deviceNetwork.IPAddresses {
+				if ipAddress.Is4() {
+					networks[i].IPAddress = types.StringValue(ipAddress.String())
+					break
+				}
+			}
+			if !networks[i].IPAddress.IsNull() {
+				break
+			}
+		}
+	}
+
+	return networks
+}
+
 // findDiskIDBySize looks up for xelon.DeviceStorage by size. If multiple disks are found,
 // the disk with lower unit_number is preferred.
 func findDiskIDBySize(ctx context.Context, diskSize int, storages []xelon.DeviceStorage) *xelon.DeviceStorage {
