@@ -2,6 +2,7 @@ package provider
 
 import (
 	"context"
+	"net/netip"
 	"testing"
 
 	"github.com/hashicorp/terraform-plugin-framework/diag"
@@ -14,6 +15,8 @@ import (
 	"github.com/hashicorp/terraform-plugin-go/tftypes"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	"github.com/Xelon-AG/xelon-sdk-go/xelon"
 )
 
 func TestResourceXelonDevice_Schema_Password(t *testing.T) {
@@ -27,6 +30,20 @@ func TestResourceXelonDevice_Schema_Password(t *testing.T) {
 	assert.True(t, password.Sensitive)
 	require.Len(t, password.PlanModifiers, 1)
 	assert.Contains(t, password.PlanModifiers[0].Description(context.Background()), "configured and changes")
+}
+
+func TestResourceXelonDevice_Schema_NetworkIPv4Address(t *testing.T) {
+	deviceSchema := testDeviceResourceSchema(t)
+
+	networks, ok := deviceSchema.Attributes["networks"].(schema.SetNestedAttribute)
+	require.True(t, ok)
+
+	ipv4Address, ok := networks.NestedObject.Attributes["ipv4_address"].(schema.StringAttribute)
+	require.True(t, ok)
+
+	assert.True(t, ipv4Address.Optional)
+	assert.True(t, ipv4Address.Computed)
+	assert.Empty(t, ipv4Address.PlanModifiers)
 }
 
 func TestResourceXelonDevice_Create_RequiresPasswordOrUserData(t *testing.T) {
@@ -105,6 +122,122 @@ func TestResourceXelonDevice_Replacement_RequiresPasswordOrUserData(t *testing.T
 
 	require.True(t, response.Diagnostics.HasError())
 	assert.True(t, response.Diagnostics.Equal(expectedDeviceMissingPasswordOrUserDataDiagnostics()))
+}
+
+func TestResourceXelonDevice_NetworkIPv4Addresses_OmittedIPBackendIPv4Stored(t *testing.T) {
+	networks := populateDeviceNetworkIPv4Addresses(
+		[]deviceNetworkResourceModel{
+			testDeviceNetworkResourceModel("network-id", types.StringNull()),
+		},
+		[]xelon.DeviceNetwork{
+			testDeviceNetworkInfo("network-id", true, "10.0.0.25"),
+		},
+	)
+
+	require.Len(t, networks, 1)
+	assert.Equal(t, "10.0.0.25", networks[0].IPAddress.ValueString())
+}
+
+func TestResourceXelonDevice_NetworkIPv4Addresses_ManualIPBackendIPv4Stored(t *testing.T) {
+	networks := populateDeviceNetworkIPv4Addresses(
+		[]deviceNetworkResourceModel{
+			testDeviceNetworkResourceModel("network-id", types.StringValue("10.0.0.50")),
+		},
+		[]xelon.DeviceNetwork{
+			testDeviceNetworkInfo("network-id", true, "10.0.0.50"),
+		},
+	)
+
+	require.Len(t, networks, 1)
+	assert.Equal(t, "10.0.0.50", networks[0].IPAddress.ValueString())
+}
+
+func TestResourceXelonDevice_NetworkIPv4Addresses_BackendIPv4ReplacesStaleState(t *testing.T) {
+	networks := populateDeviceNetworkIPv4Addresses(
+		[]deviceNetworkResourceModel{
+			testDeviceNetworkResourceModel("network-id", types.StringValue("10.0.0.10")),
+		},
+		[]xelon.DeviceNetwork{
+			testDeviceNetworkInfo("network-id", true, "10.0.0.25"),
+		},
+	)
+
+	require.Len(t, networks, 1)
+	assert.Equal(t, "10.0.0.25", networks[0].IPAddress.ValueString())
+}
+
+func TestResourceXelonDevice_NetworkIPv4Addresses_MissingBackendIPv4ClearsStaleState(t *testing.T) {
+	networks := populateDeviceNetworkIPv4Addresses(
+		[]deviceNetworkResourceModel{
+			testDeviceNetworkResourceModel("network-id", types.StringValue("10.0.0.10")),
+		},
+		[]xelon.DeviceNetwork{
+			testDeviceNetworkInfo("network-id", true),
+		},
+	)
+
+	require.Len(t, networks, 1)
+	assert.True(t, networks[0].IPAddress.IsNull())
+}
+
+func TestResourceXelonDevice_NetworkIPv4Addresses_BackendIPv6BeforeIPv4SelectsIPv4(t *testing.T) {
+	networks := populateDeviceNetworkIPv4Addresses(
+		[]deviceNetworkResourceModel{
+			testDeviceNetworkResourceModel("network-id", types.StringNull()),
+		},
+		[]xelon.DeviceNetwork{
+			testDeviceNetworkInfo("network-id", true, "2001:db8::1", "10.0.0.25"),
+		},
+	)
+
+	require.Len(t, networks, 1)
+	assert.Equal(t, "10.0.0.25", networks[0].IPAddress.ValueString())
+}
+
+func TestResourceXelonDevice_NetworkIPv4Addresses_MatchingNetworkDisconnectedIgnored(t *testing.T) {
+	networks := populateDeviceNetworkIPv4Addresses(
+		[]deviceNetworkResourceModel{
+			testDeviceNetworkResourceModel("network-id", types.StringValue("10.0.0.25")),
+		},
+		[]xelon.DeviceNetwork{
+			testDeviceNetworkInfo("network-id", false, "10.0.0.30"),
+		},
+	)
+
+	require.Len(t, networks, 1)
+	assert.True(t, networks[0].IPAddress.IsNull())
+}
+
+func TestResourceXelonDevice_NetworkIPv4Addresses_MultipleNetworksMatchedByIDNotOrder(t *testing.T) {
+	networks := populateDeviceNetworkIPv4Addresses(
+		[]deviceNetworkResourceModel{
+			testDeviceNetworkResourceModel("network-a", types.StringNull()),
+			testDeviceNetworkResourceModel("network-b", types.StringValue("10.0.0.20")),
+		},
+		[]xelon.DeviceNetwork{
+			testDeviceNetworkInfo("network-b", true, "10.0.0.20"),
+			testDeviceNetworkInfo("network-a", true, "10.0.0.10"),
+		},
+	)
+
+	require.Len(t, networks, 2)
+	assert.Equal(t, "10.0.0.10", networks[0].IPAddress.ValueString())
+	assert.Equal(t, "10.0.0.20", networks[1].IPAddress.ValueString())
+}
+
+func TestResourceXelonDevice_NetworkIPv4Addresses_MatchingNetworkWithoutIPv4DoesNotBlockLaterMatch(t *testing.T) {
+	networks := populateDeviceNetworkIPv4Addresses(
+		[]deviceNetworkResourceModel{
+			testDeviceNetworkResourceModel("network-id", types.StringNull()),
+		},
+		[]xelon.DeviceNetwork{
+			testDeviceNetworkInfo("network-id", true, "2001:db8::1"),
+			testDeviceNetworkInfo("network-id", true, "10.0.0.25"),
+		},
+	)
+
+	require.Len(t, networks, 1)
+	assert.Equal(t, "10.0.0.25", networks[0].IPAddress.ValueString())
 }
 
 func testDeviceResourceSchema(t *testing.T) schema.Schema {
@@ -191,6 +324,28 @@ func testDevicePasswordPlanModifierResponse(t *testing.T, configValue, planValue
 	}, response)
 
 	return response
+}
+
+func testDeviceNetworkResourceModel(networkID string, ipAddress types.String) deviceNetworkResourceModel {
+	return deviceNetworkResourceModel{
+		Connected:   types.BoolValue(true),
+		ID:          types.StringValue(networkID),
+		IPAddress:   ipAddress,
+		IPAddressID: types.StringNull(),
+	}
+}
+
+func testDeviceNetworkInfo(networkID string, connected bool, ipAddresses ...string) xelon.DeviceNetwork {
+	parsedIPAddresses := make(xelon.DeviceNetworkIPAddresses, 0, len(ipAddresses))
+	for _, ipAddress := range ipAddresses {
+		parsedIPAddresses = append(parsedIPAddresses, netip.MustParseAddr(ipAddress))
+	}
+
+	return xelon.DeviceNetwork{
+		Connected:   connected,
+		ID:          networkID,
+		IPAddresses: parsedIPAddresses,
+	}
 }
 
 func expectedDeviceMissingPasswordOrUserDataDiagnostics() diag.Diagnostics {

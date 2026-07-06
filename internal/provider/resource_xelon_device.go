@@ -168,8 +168,10 @@ Devices are the virtual machines that run your applications.
 							Required:            true,
 						},
 						"ipv4_address": schema.StringAttribute{
-							MarkdownDescription: "The static IP address for the network connection.",
-							Optional:            true,
+							MarkdownDescription: "The IPv4 address assigned to the device on this network. " +
+								"Specify a value for a static address; when omitted, Xelon assigns one automatically.",
+							Optional: true,
+							Computed: true,
 						},
 						"ipv4_address_id": schema.StringAttribute{
 							MarkdownDescription: "The ID of the static IP address for the network connection.",
@@ -349,9 +351,24 @@ func (r *deviceResource) Create(ctx context.Context, request resource.CreateRequ
 	}
 	tflog.Debug(ctx, "Got device with enriched properties", map[string]any{"data": device})
 
+	tflog.Debug(ctx, "getting device network info", map[string]any{"device_id": deviceID})
+
+	tflog.Trace(ctx, "getting device network info via API", map[string]any{"device_id": deviceID})
+	deviceNetworks, _, err := r.client.Devices.GetNetworkInfo(ctx, deviceID)
+	if err != nil {
+		response.Diagnostics.AddError("Unable to get device network info", err.Error())
+		return
+	}
+
+	tflog.Debug(ctx, "got device network info", map[string]any{
+		"device_id":     deviceID,
+		"network_count": len(deviceNetworks),
+	})
+
 	primaryDisk := findDiskIDBySize(ctx, int(data.DiskSize.ValueInt64()), device.Storages)
 	swapDisk := findDiskIDBySize(ctx, int(data.SwapDiskSize.ValueInt64()), device.Storages)
-	// map response body to attributes
+
+	// map API responses to state
 	if primaryDisk != nil {
 		data.DiskID = types.StringValue(primaryDisk.ID)
 	}
@@ -366,6 +383,7 @@ func (r *deviceResource) Create(ctx context.Context, request resource.CreateRequ
 	data.ID = types.StringValue(device.ID)
 	data.Memory = types.Int64Value(int64(device.RAM))
 	data.MemoryHotPlug = types.BoolValue(device.RAMHotAddEnabled)
+	data.Networks = populateDeviceNetworkIPv4Addresses(data.Networks, deviceNetworks)
 
 	diags = response.State.Set(ctx, &data)
 	response.Diagnostics.Append(diags...)
@@ -395,9 +413,24 @@ func (r *deviceResource) Read(ctx context.Context, request resource.ReadRequest,
 	}
 	tflog.Debug(ctx, "Got device", map[string]any{"data": device})
 
+	tflog.Debug(ctx, "getting device network info", map[string]any{"device_id": deviceID})
+
+	tflog.Trace(ctx, "getting device network info via API", map[string]any{"device_id": deviceID})
+	deviceNetworks, _, err := r.client.Devices.GetNetworkInfo(ctx, deviceID)
+	if err != nil {
+		response.Diagnostics.AddError("Unable to get device network info", err.Error())
+		return
+	}
+
+	tflog.Debug(ctx, "got device network info", map[string]any{
+		"device_id":     deviceID,
+		"network_count": len(deviceNetworks),
+	})
+
 	primaryDisk := findDiskIDBySize(ctx, int(data.DiskSize.ValueInt64()), device.Storages)
 	swapDisk := findDiskIDBySize(ctx, int(data.SwapDiskSize.ValueInt64()), device.Storages)
-	// map response body to attributes
+
+	// map API responses to state
 	if primaryDisk != nil {
 		data.DiskID = types.StringValue(primaryDisk.ID)
 	}
@@ -412,6 +445,7 @@ func (r *deviceResource) Read(ctx context.Context, request resource.ReadRequest,
 	data.ID = types.StringValue(device.ID)
 	data.Memory = types.Int64Value(int64(device.RAM))
 	data.MemoryHotPlug = types.BoolValue(device.RAMHotAddEnabled)
+	data.Networks = populateDeviceNetworkIPv4Addresses(data.Networks, deviceNetworks)
 
 	diags = response.State.Set(ctx, &data)
 	response.Diagnostics.Append(diags...)
@@ -695,6 +729,31 @@ func (r *deviceResource) ModifyPlan(ctx context.Context, request resource.Modify
 			`Attribute "swap_disk_size" must be specified when "user_data" is not set.`,
 		)
 	}
+}
+
+func populateDeviceNetworkIPv4Addresses(networks []deviceNetworkResourceModel, deviceNetworks []xelon.DeviceNetwork) []deviceNetworkResourceModel {
+	for i := range networks {
+		networks[i].IPAddress = types.StringNull()
+		networkID := networks[i].ID.ValueString()
+
+		for _, deviceNetwork := range deviceNetworks {
+			if deviceNetwork.ID != networkID || !deviceNetwork.Connected {
+				continue
+			}
+
+			for _, ipAddress := range deviceNetwork.IPAddresses {
+				if ipAddress.Is4() {
+					networks[i].IPAddress = types.StringValue(ipAddress.String())
+					break
+				}
+			}
+			if !networks[i].IPAddress.IsNull() {
+				break
+			}
+		}
+	}
+
+	return networks
 }
 
 // findDiskIDBySize looks up for xelon.DeviceStorage by size. If multiple disks are found,

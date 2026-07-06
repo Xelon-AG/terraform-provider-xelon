@@ -100,6 +100,11 @@ func TestAccResourceXelonDevice(t *testing.T) {
 					),
 					statecheck.ExpectKnownValue(
 						"xelon_device.test",
+						tfjsonpath.New("networks").AtSliceIndex(0).AtMapKey("ipv4_address"),
+						knownvalue.NotNull(),
+					),
+					statecheck.ExpectKnownValue(
+						"xelon_device.test",
 						tfjsonpath.New("swap_disk_id"),
 						knownvalue.NotNull(),
 					),
@@ -158,6 +163,11 @@ func TestAccResourceXelonDevice(t *testing.T) {
 						"xelon_device.test",
 						tfjsonpath.New("memory"),
 						knownvalue.Int64Exact(2),
+					),
+					statecheck.ExpectKnownValue(
+						"xelon_device.test",
+						tfjsonpath.New("networks").AtSliceIndex(0).AtMapKey("ipv4_address"),
+						knownvalue.NotNull(),
 					),
 					statecheck.ExpectKnownValue(
 						"xelon_device.test",
