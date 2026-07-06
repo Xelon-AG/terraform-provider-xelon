@@ -1,4 +1,11 @@
 
+## v1.6.2 (2026-07-06)
+### Bug Fixes
+* **resource/xelon_device**: populate auto-assigned network ipv4 addresses
+* **resource/xelon_device**: read assigned ipv4 addresses back into state
+### Maintaining
+* **deps**: bump golang.org/x/net from 0.52.0 to 0.55.0
+
 ## v1.6.1 (2026-07-05)
 ### Bug Fixes
 * **resource/xelon_object_storage_user**: align computed field name for region replication
