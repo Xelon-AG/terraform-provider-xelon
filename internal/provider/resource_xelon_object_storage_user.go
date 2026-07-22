@@ -149,37 +149,51 @@ func (r *objectStorageUserResource) Create(ctx context.Context, request resource
 	if !data.TenantID.IsNull() && !data.TenantID.IsUnknown() {
 		createRequest.TenantID = data.TenantID.ValueString()
 	}
-	tflog.Debug(ctx, "Creating object storage user", map[string]any{"payload": createRequest})
+	tflog.Debug(ctx, "creating object storage user", map[string]any{
+		"name":      data.Name.ValueString(),
+		"region":    region,
+		"tenant_id": createRequest.TenantID,
+	})
+
+	tflog.Trace(ctx, "creating object storage user via API", map[string]any{
+		"name":      data.Name.ValueString(),
+		"region":    region,
+		"tenant_id": createRequest.TenantID,
+		"payload":   createRequest,
+	})
 	createdObjectStorageUser, _, err := r.client.ObjectStorages.CreateUser(ctx, createRequest)
 	if err != nil {
 		response.Diagnostics.AddError("Unable to create object storage user", err.Error())
 		return
 	}
-	tflog.Debug(ctx, "Created object storage user", map[string]any{"data": createdObjectStorageUser})
+	tflog.Trace(ctx, "received object storage user from API", map[string]any{
+		"id":   createdObjectStorageUser.ID,
+		"name": createdObjectStorageUser.Name,
+	})
 
 	objectStorageUserID := createdObjectStorageUser.ID
 
-	tflog.Debug(ctx, "Removing API-generated default access keys for the object storage user",
-		map[string]any{"object_storage_user_id": objectStorageUserID},
-	)
-	for _, generatedAccessKey := range createdObjectStorageUser.Tokens {
-		_, err := r.client.ObjectStorages.DeleteUserToken(ctx, objectStorageUserID, generatedAccessKey.ID)
-		if err != nil {
-			response.Diagnostics.AddError("Unable to delete API-generated default access key", err.Error())
-			return
-		}
-	}
+	tflog.Debug(ctx, "created object storage user", map[string]any{
+		"id":   objectStorageUserID,
+		"name": createdObjectStorageUser.Name,
+	})
 
-	tflog.Debug(ctx, "Getting object storage user with enriched properties", map[string]any{"object_storage_user_id": objectStorageUserID})
+	tflog.Debug(ctx, "getting object storage user with enriched properties", map[string]any{"object_storage_user_id": objectStorageUserID})
+
+	tflog.Trace(ctx, "reading object storage user via API (created user refresh)", map[string]any{"object_storage_user_id": objectStorageUserID})
 	objectStorageUser, _, err := r.client.ObjectStorages.GetUser(ctx, objectStorageUserID)
 	if err != nil {
 		response.Diagnostics.AddError("Unable to get object storage user", err.Error())
 		return
 	}
-	tflog.Debug(ctx, "Got object storage user with enriched properties", map[string]any{"data": objectStorageUser})
+	tflog.Trace(ctx, "received object storage user from API", map[string]any{"data": objectStorageUser})
 
 	// map response body to attributes
 	response.Diagnostics.Append(data.fromAPI(ctx, objectStorageUser, region)...)
+	if response.Diagnostics.HasError() {
+		return
+	}
+
 	diags = response.State.Set(ctx, &data)
 	response.Diagnostics.Append(diags...)
 }
@@ -197,7 +211,9 @@ func (r *objectStorageUserResource) Read(ctx context.Context, request resource.R
 	objectStorageUserID := data.ID.ValueString()
 	region := data.Region.ValueString()
 
-	tflog.Debug(ctx, "Getting object storage user", map[string]any{"object_storage_user_id": objectStorageUserID})
+	tflog.Debug(ctx, "reading object storage user", map[string]any{"object_storage_user_id": objectStorageUserID})
+
+	tflog.Trace(ctx, "reading object storage user via API", map[string]any{"object_storage_user_id": objectStorageUserID})
 	objectStorageUser, resp, err := r.client.ObjectStorages.GetUser(ctx, objectStorageUserID)
 	if err != nil {
 		if resp != nil && resp.StatusCode == http.StatusNotFound {
@@ -208,10 +224,14 @@ func (r *objectStorageUserResource) Read(ctx context.Context, request resource.R
 		response.Diagnostics.AddError("Unable to get object storage user", err.Error())
 		return
 	}
-	tflog.Debug(ctx, "Got object storage user", map[string]any{"data": objectStorageUser})
+	tflog.Trace(ctx, "received object storage user from API", map[string]any{"data": objectStorageUser})
 
 	// map response body to attributes
 	response.Diagnostics.Append(data.fromAPI(ctx, objectStorageUser, region)...)
+	if response.Diagnostics.HasError() {
+		return
+	}
+
 	diags = response.State.Set(ctx, &data)
 	response.Diagnostics.Append(diags...)
 }
@@ -233,7 +253,12 @@ func (r *objectStorageUserResource) Update(ctx context.Context, request resource
 		Name:    data.Name.ValueString(),
 		QuotaGB: int(data.StorageLimit.ValueInt64()),
 	}
-	tflog.Debug(ctx, "Updating object storage user", map[string]any{
+	tflog.Debug(ctx, "updating object storage user", map[string]any{
+		"object_storage_user_id": objectStorageUserID,
+		"name":                   data.Name.ValueString(),
+	})
+
+	tflog.Trace(ctx, "updating object storage user via API", map[string]any{
 		"object_storage_user_id": objectStorageUserID,
 		"payload":                updateRequest,
 	})
@@ -242,18 +267,33 @@ func (r *objectStorageUserResource) Update(ctx context.Context, request resource
 		response.Diagnostics.AddError("Unable to update object storage user", err.Error())
 		return
 	}
-	tflog.Debug(ctx, "Updated object storage user", map[string]any{"data": updatedObjectStorageUser})
+	tflog.Trace(ctx, "received object storage user from API", map[string]any{
+		"data": updatedObjectStorageUser,
+	})
 
-	tflog.Debug(ctx, "Getting object storage user with enriched properties", map[string]any{"object_storage_user_id": objectStorageUserID})
+	tflog.Debug(ctx, "updated object storage user", map[string]any{
+		"object_storage_user_id": updatedObjectStorageUser.ID,
+		"name":                   updatedObjectStorageUser.Name,
+	})
+
+	tflog.Debug(ctx, "refreshing object storage user state after update", map[string]any{"object_storage_user_id": objectStorageUserID})
+
+	tflog.Trace(ctx, "reading object storage user via API (updated user refresh)", map[string]any{"object_storage_user_id": objectStorageUserID})
 	objectStorageUser, _, err := r.client.ObjectStorages.GetUser(ctx, objectStorageUserID)
 	if err != nil {
 		response.Diagnostics.AddError("Unable to get object storage user", err.Error())
 		return
 	}
-	tflog.Debug(ctx, "Got object storage user with enriched properties", map[string]any{"data": objectStorageUser})
+	tflog.Trace(ctx, "received object storage user from API", map[string]any{
+		"data": objectStorageUser,
+	})
 
 	// map response body to attributes
 	response.Diagnostics.Append(data.fromAPI(ctx, objectStorageUser, region)...)
+	if response.Diagnostics.HasError() {
+		return
+	}
+
 	diags = response.State.Set(ctx, &data)
 	response.Diagnostics.Append(diags...)
 }
@@ -270,13 +310,15 @@ func (r *objectStorageUserResource) Delete(ctx context.Context, request resource
 
 	objectStorageUserID := data.ID.ValueString()
 
-	tflog.Debug(ctx, "Deleting object storage user", map[string]any{"object_storage_user_id": objectStorageUserID})
+	tflog.Debug(ctx, "deleting object storage user", map[string]any{"object_storage_user_id": objectStorageUserID})
+
+	tflog.Trace(ctx, "deleting object storage user via API", map[string]any{"object_storage_user_id": objectStorageUserID})
 	_, err := r.client.ObjectStorages.DeleteUser(ctx, objectStorageUserID)
 	if err != nil {
 		response.Diagnostics.AddError("Unable to delete object storage user", err.Error())
 		return
 	}
-	tflog.Debug(ctx, "Deleted object storage user", map[string]any{"object_storage_user_id": objectStorageUserID})
+	tflog.Debug(ctx, "deleted object storage user", map[string]any{"object_storage_user_id": objectStorageUserID})
 }
 
 func (m *objectStorageUserResourceModel) fromAPI(ctx context.Context, objectStorageUser *xelon.ObjectStorageUser, region string) diag.Diagnostics {

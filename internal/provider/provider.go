@@ -155,6 +155,7 @@ func (p *xelonProvider) Resources(_ context.Context) []func() resource.Resource 
 		NewLoadBalancerForwardingRuleResource,
 		NewNetworkResource,
 		NewObjectStorageAccessKeyResource,
+		NewObjectStorageBucketResource,
 		NewObjectStorageUserResource,
 		NewPersistentStorageResource,
 		NewSSHKeyResource,

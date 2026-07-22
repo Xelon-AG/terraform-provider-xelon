@@ -18,7 +18,8 @@ import (
 
 func init() {
 	resource.AddTestSweepers("xelon_object_storage_user", &resource.Sweeper{
-		Name: "xelon_object_storage_user",
+		Name:         "xelon_object_storage_user",
+		Dependencies: []string{"xelon_object_storage_bucket"},
 		F: func(region string) error {
 			ctx := context.Background()
 			client, err := sharedClient(region)

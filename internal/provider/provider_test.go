@@ -4,6 +4,7 @@ import (
 	"os"
 	"regexp"
 	"testing"
+	"time"
 
 	"github.com/hashicorp/terraform-plugin-framework/providerserver"
 	"github.com/hashicorp/terraform-plugin-go/tfprotov6"
@@ -85,3 +86,14 @@ data "xelon_network" "test" {
   }
 }
 `
+
+func mustTime(t *testing.T, timestamp string) *time.Time {
+	t.Helper()
+
+	ts, err := time.Parse(time.RFC3339, timestamp)
+	if err != nil {
+		t.Fatalf("failed to parse timestamp %q: %v", timestamp, err)
+	}
+
+	return &ts
+}
