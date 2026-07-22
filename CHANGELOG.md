@@ -1,4 +1,10 @@
 
+## v1.7.0 (2026-07-22)
+### Features
+* **resource/xelon_object_storage_bucket**: add resource to manage object storage buckets
+### Maintaining
+* **deps**: bump the github-actions group across 1 directory with 2 updates
+
 ## v1.6.2 (2026-07-06)
 ### Bug Fixes
 * **resource/xelon_device**: populate auto-assigned network ipv4 addresses
