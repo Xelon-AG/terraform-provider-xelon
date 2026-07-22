@@ -10,10 +10,11 @@ description: |-
 
 {{ .Description | trimspace }}
 
--> The Xelon API automatically creates a default access key when an Object Storage user is created.
-To ensure access credentials are managed explicitly through Terraform, the provider removes the
-default access key during creation of the `xelon_object_storage_user` resource.
-Use the `xelon_object_storage_access_key` resource to create and manage Object Storage credentials.
+-> Creating a `xelon_object_storage_user` also creates one initial access key in Xelon.
+This key is created by Xelon automatically because every Object Storage user must have at least
+one active access key. Terraform does not manage this initial key: it is not added to your
+Terraform state as a `xelon_object_storage_access_key`, and Terraform will not rotate or delete it.
+To manage additional access keys with Terraform, use the `xelon_object_storage_access_key` resource.
 
 ## Example Usage
 
