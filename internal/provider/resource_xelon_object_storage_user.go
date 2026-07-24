@@ -2,11 +2,14 @@ package provider
 
 import (
 	"context"
+	"errors"
 	"net/http"
+	"strings"
 
 	"github.com/hashicorp/terraform-plugin-framework-validators/int64validator"
 	"github.com/hashicorp/terraform-plugin-framework-validators/stringvalidator"
 	"github.com/hashicorp/terraform-plugin-framework/diag"
+	"github.com/hashicorp/terraform-plugin-framework/path"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/planmodifier"
@@ -19,8 +22,9 @@ import (
 )
 
 var (
-	_ resource.Resource              = (*objectStorageUserResource)(nil)
-	_ resource.ResourceWithConfigure = (*objectStorageUserResource)(nil)
+	_ resource.Resource                = (*objectStorageUserResource)(nil)
+	_ resource.ResourceWithConfigure   = (*objectStorageUserResource)(nil)
+	_ resource.ResourceWithImportState = (*objectStorageUserResource)(nil)
 )
 
 // objectStorageUserResource is the object storage user resource implementation.
@@ -321,6 +325,17 @@ func (r *objectStorageUserResource) Delete(ctx context.Context, request resource
 	tflog.Debug(ctx, "deleted object storage user", map[string]any{"object_storage_user_id": objectStorageUserID})
 }
 
+func (r *objectStorageUserResource) ImportState(ctx context.Context, request resource.ImportStateRequest, response *resource.ImportStateResponse) {
+	region, objectStorageUserID, err := parseObjectStorageUserImportID(request.ID)
+	if err != nil {
+		response.Diagnostics.AddError("Invalid import identifier", "Expected format: <region>/<id>")
+		return
+	}
+
+	response.Diagnostics.Append(response.State.SetAttribute(ctx, path.Root("region"), region)...)
+	response.Diagnostics.Append(response.State.SetAttribute(ctx, path.Root("id"), objectStorageUserID)...)
+}
+
 func (m *objectStorageUserResourceModel) fromAPI(ctx context.Context, objectStorageUser *xelon.ObjectStorageUser, region string) diag.Diagnostics {
 	var diags diag.Diagnostics
 
@@ -343,4 +358,13 @@ func (m *objectStorageUserResourceModel) fromAPI(ctx context.Context, objectStor
 	}
 
 	return diags
+}
+
+func parseObjectStorageUserImportID(importID string) (string, string, error) {
+	region, objectStorageUserID, ok := strings.Cut(importID, "/")
+	if !ok || region == "" || objectStorageUserID == "" {
+		return "", "", errors.New("invalid import identifier")
+	}
+
+	return region, objectStorageUserID, nil
 }

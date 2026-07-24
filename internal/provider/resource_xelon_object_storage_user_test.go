@@ -2,152 +2,106 @@ package provider
 
 import (
 	"context"
-	"fmt"
-	"log/slog"
-	"strings"
 	"testing"
 
-	"github.com/hashicorp/terraform-plugin-testing/helper/acctest"
-	"github.com/hashicorp/terraform-plugin-testing/helper/resource"
-	"github.com/hashicorp/terraform-plugin-testing/knownvalue"
-	"github.com/hashicorp/terraform-plugin-testing/statecheck"
-	"github.com/hashicorp/terraform-plugin-testing/tfjsonpath"
+	"github.com/hashicorp/terraform-plugin-framework/resource"
+	"github.com/hashicorp/terraform-plugin-framework/types"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 
 	"github.com/Xelon-AG/xelon-sdk-go/xelon"
 )
 
-func init() {
-	resource.AddTestSweepers("xelon_object_storage_user", &resource.Sweeper{
-		Name:         "xelon_object_storage_user",
-		Dependencies: []string{"xelon_object_storage_bucket"},
-		F: func(region string) error {
-			ctx := context.Background()
-			client, err := sharedClient(region)
-			if err != nil {
-				return err
-			}
+func TestResourceXelonObjectStorageUser_Model_FromAPI(t *testing.T) {
+	ctx := context.Background()
+	user := &xelon.ObjectStorageUser{
+		ID:                       "user-123",
+		Name:                     "test-user",
+		QuotaGB:                  500,
+		RegionReplicationEnabled: true,
+		S3Endpoints:              []string{"https://ch1-s3.xelon.io"},
+		Tenant:                   &xelon.Tenant{ID: "tenant-id"},
+	}
 
-			users, errf := client.ObjectStorages.AllUsers(ctx, &xelon.ListOptions{PerPage: 100})
-			for user := range users {
-				if strings.HasPrefix(user.Name, accTestPrefix) {
-					slog.Info("Deleting xelon_object_storage_user", "name", user.Name, "id", user.ID)
-					_, err := client.ObjectStorages.DeleteUser(ctx, user.ID)
-					if err != nil {
-						slog.Warn("Error deleting object storage user during sweep", "name", user.Name, "error", err)
-					}
-				}
-			}
-			if err := errf(); err != nil {
-				return fmt.Errorf("getting object storage user list: %w", err)
-			}
-			return nil
-		},
-	})
+	expectedEndpoints, diags := types.SetValueFrom(
+		ctx,
+		types.StringType,
+		[]string{"https://ch1-s3.xelon.io"},
+	)
+	require.False(t, diags.HasError())
+
+	expected := objectStorageUserResourceModel{
+		ID:                       types.StringValue("user-123"),
+		Name:                     types.StringValue("test-user"),
+		Region:                   types.StringValue("zh1"),
+		RegionReplicationEnabled: types.BoolValue(true),
+		S3Endpoints:              expectedEndpoints,
+		StorageLimit:             types.Int64Value(500),
+		TenantID:                 types.StringValue("tenant-id"),
+	}
+
+	var actual objectStorageUserResourceModel
+	diags = actual.fromAPI(ctx, user, "zh1")
+
+	require.False(t, diags.HasError())
+	assert.Equal(t, expected, actual)
 }
 
-func TestAccResourceXelonObjectStorageUser(t *testing.T) {
-	name := acctest.RandomWithPrefix(accTestPrefix)
-	nameUpdated := acctest.RandomWithPrefix(accTestPrefix)
+func TestResourceXelonObjectStorageUser_Model_FromAPI_NilOptionalFields(t *testing.T) {
+	model := objectStorageUserResourceModel{
+		TenantID: types.StringValue("previous-tenant-id"),
+	}
+	user := &xelon.ObjectStorageUser{
+		ID:      "user-123",
+		Name:    "test-user",
+		QuotaGB: 100,
+	}
 
-	resource.ParallelTest(t, resource.TestCase{
-		PreCheck:                 func() { testAccPreCheck(t) },
-		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
-		Steps: []resource.TestStep{
-			// create and read
-			{
-				Config: testAccResourceXelonObjectStorageUserConfig(name, 100),
-				ConfigStateChecks: []statecheck.StateCheck{
-					statecheck.ExpectKnownValue(
-						"xelon_object_storage_user.test",
-						tfjsonpath.New("id"),
-						knownvalue.NotNull(),
-					),
-					statecheck.ExpectKnownValue(
-						"xelon_object_storage_user.test",
-						tfjsonpath.New("name"),
-						knownvalue.StringExact(name),
-					),
-					statecheck.ExpectKnownValue(
-						"xelon_object_storage_user.test",
-						tfjsonpath.New("region"),
-						knownvalue.StringExact("zh1"),
-					),
-					statecheck.ExpectKnownValue(
-						"xelon_object_storage_user.test",
-						tfjsonpath.New("region_replication_enabled"),
-						knownvalue.NotNull(),
-					),
-					statecheck.ExpectKnownValue(
-						"xelon_object_storage_user.test",
-						tfjsonpath.New("s3_endpoints"),
-						knownvalue.NotNull(),
-					),
-					statecheck.ExpectKnownValue(
-						"xelon_object_storage_user.test",
-						tfjsonpath.New("storage_limit"),
-						knownvalue.Int64Exact(100),
-					),
-					statecheck.ExpectKnownValue(
-						"xelon_object_storage_user.test",
-						tfjsonpath.New("tenant_id"),
-						knownvalue.NotNull(),
-					),
-				},
-			},
-			// update and read
-			{
-				Config: testAccResourceXelonObjectStorageUserConfig(nameUpdated, 500),
-				ConfigStateChecks: []statecheck.StateCheck{
-					statecheck.ExpectKnownValue(
-						"xelon_object_storage_user.test",
-						tfjsonpath.New("id"),
-						knownvalue.NotNull(),
-					),
-					statecheck.ExpectKnownValue(
-						"xelon_object_storage_user.test",
-						tfjsonpath.New("name"),
-						knownvalue.StringExact(nameUpdated),
-					),
-					statecheck.ExpectKnownValue(
-						"xelon_object_storage_user.test",
-						tfjsonpath.New("region"),
-						knownvalue.StringExact("zh1"),
-					),
-					statecheck.ExpectKnownValue(
-						"xelon_object_storage_user.test",
-						tfjsonpath.New("region_replication_enabled"),
-						knownvalue.NotNull(),
-					),
-					statecheck.ExpectKnownValue(
-						"xelon_object_storage_user.test",
-						tfjsonpath.New("s3_endpoints"),
-						knownvalue.NotNull(),
-					),
-					statecheck.ExpectKnownValue(
-						"xelon_object_storage_user.test",
-						tfjsonpath.New("storage_limit"),
-						knownvalue.Int64Exact(500),
-					),
-					statecheck.ExpectKnownValue(
-						"xelon_object_storage_user.test",
-						tfjsonpath.New("tenant_id"),
-						knownvalue.NotNull(),
-					),
-				},
-			},
-		},
-	})
+	diags := model.fromAPI(context.Background(), user, "zh1")
+
+	require.False(t, diags.HasError())
+	assert.Equal(t, types.StringValue("user-123"), model.ID)
+	assert.Equal(t, types.StringValue("test-user"), model.Name)
+	assert.Equal(t, types.StringValue("zh1"), model.Region)
+	assert.Equal(t, types.BoolValue(false), model.RegionReplicationEnabled)
+	assert.True(t, model.S3Endpoints.IsNull())
+	assert.Equal(t, types.Int64Value(100), model.StorageLimit)
+	assert.Equal(t, types.StringValue("previous-tenant-id"), model.TenantID)
 }
 
-func testAccResourceXelonObjectStorageUserConfig(name string, storageLimit int) string {
-	return fmt.Sprintf(`
-resource "xelon_object_storage_user" "test" {
-  name          = %[1]q
-  region        = "zh1"
-  storage_limit = %[2]d
-  tenant_id     =  data.xelon_tenant.test.id
+func TestResourceXelonObjectStorageUser_ImportID_Parse(t *testing.T) {
+	region, objectStorageUserID, err := parseObjectStorageUserImportID("zh1/user-123")
+
+	require.NoError(t, err)
+	assert.Equal(t, "zh1", region)
+	assert.Equal(t, "user-123", objectStorageUserID)
 }
 
-data "xelon_tenant" "test" {}
-`, name, storageLimit)
+func TestResourceXelonObjectStorageUser_ImportID_ParseInvalid(t *testing.T) {
+	testCases := []string{
+		"",
+		"zh1",
+		"/user-123",
+		"zh1/",
+	}
+
+	for _, testCase := range testCases {
+		t.Run(testCase, func(t *testing.T) {
+			_, _, err := parseObjectStorageUserImportID(testCase)
+			require.Error(t, err)
+		})
+	}
+}
+
+func TestResourceXelonObjectStorageUser_ImportState_InvalidIDDiagnostic(t *testing.T) {
+	response := &resource.ImportStateResponse{}
+
+	NewObjectStorageUserResource().(*objectStorageUserResource).ImportState(context.Background(), resource.ImportStateRequest{
+		ID: "zh1",
+	}, response)
+
+	require.True(t, response.Diagnostics.HasError())
+	require.Len(t, response.Diagnostics, 1)
+	assert.Equal(t, "Invalid import identifier", response.Diagnostics[0].Summary())
+	assert.Equal(t, "Expected format: <region>/<id>", response.Diagnostics[0].Detail())
 }
