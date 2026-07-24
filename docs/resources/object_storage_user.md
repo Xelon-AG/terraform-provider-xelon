@@ -47,3 +47,13 @@ resource "xelon_object_storage_user" "test" {
 - `id` (String) The ID of the object storage user.
 - `region_replication_enabled` (Boolean) Whether region replication is enabled for the object storage user.
 - `s3_endpoints` (Set of String) The set of S3-compatible endpoint URLs that can be used to access object storage.
+
+## Import
+
+Using `terraform import`, import the Object Storage user using the format: `<region>/<id>`. For example:
+
+```shell
+terraform import xelon_object_storage_user.test zh1/00000000-0000-0000-0000-000000000000
+```
+
+The `region` segment is required for import. After import, configure `region` with the same value used in the import ID.

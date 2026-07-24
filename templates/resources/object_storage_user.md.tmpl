@@ -21,3 +21,13 @@ To manage additional access keys with Terraform, use the `xelon_object_storage_a
 {{ tffile "examples/resources/xelon_object_storage_user/resource.tf" }}
 
 {{ .SchemaMarkdown | trimspace }}
+{{ if .HasImport }}
+## Import
+
+Using `terraform import`, import the Object Storage user using the format: `<region>/<id>`. For example:
+
+{{ codefile "shell" .ImportFile }}
+
+The `region` segment is required for import. After import, configure `region` with the same value used in the import ID.
+
+{{- end }}
