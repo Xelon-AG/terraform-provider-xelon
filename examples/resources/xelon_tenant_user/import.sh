@@ -1,0 +1,1 @@
+terraform import xelon_tenant_user.example 123456abcdef/abcdef123456
