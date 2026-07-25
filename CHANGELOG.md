@@ -1,4 +1,16 @@
 
+## v1.8.0 (2026-07-25)
+### Bug Fixes
+* **resource/xelon_object_storage_user**: add import support
+### Code Refactoring
+* **resource/xelon_object_storage_user**: add acceptance tests for import functionality
+### Documentation
+* **resource/xelon_object_storage_user**: update documentation for import
+### Features
+* **resource/xelon_tenant_user**: add resource to manage tenant users
+### Maintaining
+* **deps**: upgrade xelon-sdk-go to v1.14.4
+
 ## v1.7.0 (2026-07-22)
 ### Features
 * **resource/xelon_object_storage_bucket**: add resource to manage object storage buckets
