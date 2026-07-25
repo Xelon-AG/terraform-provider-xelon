@@ -145,6 +145,7 @@ func (p *xelonProvider) Resources(_ context.Context) []func() resource.Resource 
 	return []func() resource.Resource{
 		NewDeviceResource,
 		NewDNSRecordResource,
+		NewDNSSOAResource,
 		NewDNSZoneResource,
 		NewFirewallResource,
 		NewFirewallForwardingRuleResource,
