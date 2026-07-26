@@ -24,3 +24,11 @@ the SOA settings from Terraform state. It does not delete, reset, clear, or othe
 and it does not delete the DNS zone managed by `xelon_dns_zone`.
 
 {{ .SchemaMarkdown | trimspace }}
+{{ if .HasImport }}
+## Import
+
+Using `terraform import`, import DNS SOA settings with the owning DNS zone ID. For example:
+
+{{ codefile "shell" .ImportFile }}
+
+{{- end }}

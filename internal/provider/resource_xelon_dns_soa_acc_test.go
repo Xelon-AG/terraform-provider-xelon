@@ -83,6 +83,12 @@ func TestAccResourceXelonDNSSOA(t *testing.T) {
 					initialIDMatchesZoneID,
 				},
 			},
+			// import existing SOA settings and verify all state can be reconstructed
+			{
+				ResourceName:      "xelon_dns_soa.test",
+				ImportState:       true,
+				ImportStateVerify: true,
+			},
 			// update mutable SOA settings in place and read back authoritative state
 			{
 				Config: testAccResourceXelonDNSSOAConfig(
