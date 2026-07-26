@@ -60,3 +60,11 @@ and it does not delete the DNS zone managed by `xelon_dns_zone`.
 ### Read-Only
 
 - `id` (String) Terraform resource ID for the DNS SOA settings. This is the owning DNS zone ID.
+
+## Import
+
+Using `terraform import`, import DNS SOA settings with the owning DNS zone ID. For example:
+
+```shell
+terraform import xelon_dns_soa.example 123456abcdef
+```

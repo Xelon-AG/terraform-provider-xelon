@@ -6,6 +6,7 @@ import (
 
 	"github.com/hashicorp/terraform-plugin-framework-validators/int64validator"
 	"github.com/hashicorp/terraform-plugin-framework-validators/stringvalidator"
+	"github.com/hashicorp/terraform-plugin-framework/path"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/planmodifier"
@@ -18,8 +19,9 @@ import (
 )
 
 var (
-	_ resource.Resource              = (*dnsSOAResource)(nil)
-	_ resource.ResourceWithConfigure = (*dnsSOAResource)(nil)
+	_ resource.Resource                = (*dnsSOAResource)(nil)
+	_ resource.ResourceWithConfigure   = (*dnsSOAResource)(nil)
+	_ resource.ResourceWithImportState = (*dnsSOAResource)(nil)
 )
 
 // dnsSOAResource is the dns SOA settings resource implementation.
@@ -316,6 +318,11 @@ func (r *dnsSOAResource) Delete(ctx context.Context, request resource.DeleteRequ
 		"state_only": true,
 		"zone_id":    zoneID,
 	})
+}
+
+func (r *dnsSOAResource) ImportState(ctx context.Context, request resource.ImportStateRequest, response *resource.ImportStateResponse) {
+	response.Diagnostics.Append(response.State.SetAttribute(ctx, path.Root("id"), request.ID)...)
+	response.Diagnostics.Append(response.State.SetAttribute(ctx, path.Root("zone_id"), request.ID)...)
 }
 
 func (m *dnsSOAResourceModel) fromAPI(soa *xelon.DNSSOA, zoneID string) {
