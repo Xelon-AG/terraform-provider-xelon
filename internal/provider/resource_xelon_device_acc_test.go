@@ -7,6 +7,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/hashicorp/terraform-plugin-testing/compare"
 	"github.com/hashicorp/terraform-plugin-testing/helper/acctest"
 	"github.com/hashicorp/terraform-plugin-testing/helper/resource"
 	"github.com/hashicorp/terraform-plugin-testing/knownvalue"
@@ -50,7 +51,9 @@ func TestAccResourceXelonDevice(t *testing.T) {
 	displayName := hostname
 	displayNameUpdated := fmt.Sprintf("%s-%s", accTestPrefix, acctest.RandString(10))
 
-	resource.Test(t, resource.TestCase{
+	compareIPv4AddressValueSame := statecheck.CompareValue(compare.ValuesSame())
+
+	resource.ParallelTest(t, resource.TestCase{
 		PreCheck:                 func() { testAccPreCheck(t) },
 		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
 		Steps: []resource.TestStep{
@@ -118,6 +121,10 @@ func TestAccResourceXelonDevice(t *testing.T) {
 						tfjsonpath.New("tenant_id"),
 						knownvalue.NotNull(),
 					),
+					compareIPv4AddressValueSame.AddStateValue(
+						"xelon_device.test",
+						tfjsonpath.New("networks").AtSliceIndex(0).AtMapKey("ipv4_address"),
+					),
 				},
 			},
 			// update and read
@@ -183,6 +190,10 @@ func TestAccResourceXelonDevice(t *testing.T) {
 						"xelon_device.test",
 						tfjsonpath.New("tenant_id"),
 						knownvalue.NotNull(),
+					),
+					compareIPv4AddressValueSame.AddStateValue(
+						"xelon_device.test",
+						tfjsonpath.New("networks").AtSliceIndex(0).AtMapKey("ipv4_address"),
 					),
 				},
 			},
