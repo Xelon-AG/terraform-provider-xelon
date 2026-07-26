@@ -240,6 +240,92 @@ func TestResourceXelonDevice_NetworkIPv4Addresses_MatchingNetworkWithoutIPv4Does
 	assert.Equal(t, "10.0.0.25", networks[0].IPAddress.ValueString())
 }
 
+func TestResourceXelonDevice_Model_FromAPI_PreservesCreateTimeOnlyFields(t *testing.T) {
+	ctx := context.Background()
+	device := &xelon.Device{
+		CPUCores:              4,
+		CPUCoresHotAddEnabled: true,
+		DisplayName:           "backend-device",
+		HostName:              "backend-hostname",
+		ID:                    "device-id",
+		RAM:                   8,
+		RAMHotAddEnabled:      true,
+		Storages: []xelon.DeviceStorage{
+			{ID: "disk-id", Size: 20},
+			{ID: "swap-disk-id", Size: 2},
+		},
+	}
+	expected := deviceResourceModel{
+		CPUCoreCount:     types.Int64Value(4),
+		CPUCoreHotPlug:   types.BoolValue(true),
+		DiskID:           types.StringValue("disk-id"),
+		DiskSize:         types.Int64Value(20),
+		DisplayName:      types.StringValue("backend-device"),
+		EnableMonitoring: types.BoolValue(false),
+		Hostname:         types.StringValue("backend-hostname"),
+		ID:               types.StringValue("device-id"),
+		Memory:           types.Int64Value(8),
+		MemoryHotPlug:    types.BoolValue(true),
+		Networks: []deviceNetworkResourceModel{
+			testDeviceNetworkResourceModel("network-id", types.StringValue("10.0.0.25")),
+		},
+		Password:     types.StringValue("password"),
+		SendEmail:    types.BoolValue(true),
+		SSHKeyID:     types.StringValue("ssh-key-id"),
+		ScriptID:     types.StringValue("script-id"),
+		SwapDiskID:   types.StringValue("swap-disk-id"),
+		SwapDiskSize: types.Int64Value(2),
+		TemplateID:   types.StringValue("template-id"),
+		TenantID:     types.StringValue("tenant-id"),
+		UserData:     types.StringValue("user-data"),
+	}
+
+	actual := deviceResourceModel{
+		DiskSize:     types.Int64Value(20),
+		Networks:     []deviceNetworkResourceModel{testDeviceNetworkResourceModel("network-id", types.StringUnknown())},
+		Password:     types.StringValue("password"),
+		SendEmail:    types.BoolValue(true),
+		SSHKeyID:     types.StringValue("ssh-key-id"),
+		ScriptID:     types.StringValue("script-id"),
+		SwapDiskSize: types.Int64Value(2),
+		TemplateID:   types.StringValue("template-id"),
+		TenantID:     types.StringValue("tenant-id"),
+		UserData:     types.StringValue("user-data"),
+	}
+
+	actual.fromAPI(ctx, device, []xelon.DeviceNetwork{
+		testDeviceNetworkInfo("network-id", true, "10.0.0.25"),
+	})
+
+	assert.Equal(t, expected, actual)
+}
+
+func TestResourceXelonDevice_Model_FromAPI_PopulatesComputedNetworkIPv4(t *testing.T) {
+	expected := []deviceNetworkResourceModel{
+		testDeviceNetworkResourceModel("network-id", types.StringValue("10.0.0.25")),
+	}
+
+	actual := deviceResourceModel{
+		DiskSize:     types.Int64Value(20),
+		SwapDiskSize: types.Int64Value(2),
+		Networks: []deviceNetworkResourceModel{
+			testDeviceNetworkResourceModel("network-id", types.StringUnknown()),
+		},
+	}
+	device := &xelon.Device{
+		Storages: []xelon.DeviceStorage{
+			{ID: "disk-id", Size: 20},
+			{ID: "swap-disk-id", Size: 2},
+		},
+	}
+
+	actual.fromAPI(context.Background(), device, []xelon.DeviceNetwork{
+		testDeviceNetworkInfo("network-id", true, "10.0.0.25"),
+	})
+
+	assert.Equal(t, expected, actual.Networks)
+}
+
 func testDeviceResourceSchema(t *testing.T) schema.Schema {
 	t.Helper()
 

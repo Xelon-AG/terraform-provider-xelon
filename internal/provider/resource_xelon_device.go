@@ -312,7 +312,7 @@ func (r *deviceResource) Create(ctx context.Context, request resource.CreateRequ
 	if data.MemoryHotPlug.ValueBool() {
 		createRequest.EnableRAMHotAdd = data.MemoryHotPlug.ValueBool()
 	}
-	tflog.Debug(ctx, "Creating device", map[string]any{
+	tflog.Debug(ctx, "creating device", map[string]any{
 		"display_name": data.DisplayName.ValueString(),
 		"hostname":     data.Hostname.ValueString(),
 		"template_id":  data.TemplateID.ValueString(),
@@ -323,67 +323,31 @@ func (r *deviceResource) Create(ctx context.Context, request resource.CreateRequ
 		response.Diagnostics.AddError("Unable to create device", err.Error())
 		return
 	}
-	tflog.Debug(ctx, "Created device", map[string]any{"data": createdDevice})
+	tflog.Debug(ctx, "created device", map[string]any{"data": createdDevice})
 
 	deviceID := createdDevice.ID
 
-	tflog.Info(ctx, "Waiting for device to be powered on", map[string]any{"device_id": deviceID})
+	tflog.Info(ctx, "waiting for device to be powered on", map[string]any{"device_id": deviceID})
 	err = helper.WaitDevicePowerStateOn(ctx, r.client, deviceID)
 	if err != nil {
 		response.Diagnostics.AddError("Unable to wait for device to be powered on", err.Error())
 		return
 	}
-	tflog.Info(ctx, "Device is powered on", map[string]any{"device_id": deviceID})
+	tflog.Info(ctx, "device is powered on", map[string]any{"device_id": deviceID})
 
-	tflog.Info(ctx, "Waiting for device to be ready", map[string]any{"device_id": deviceID})
+	tflog.Info(ctx, "waiting for device to be ready", map[string]any{"device_id": deviceID})
 	err = helper.WaitDeviceStateReady(ctx, r.client, deviceID)
 	if err != nil {
 		response.Diagnostics.AddError("Unable to wait for device to be ready", err.Error())
 		return
 	}
-	tflog.Info(ctx, "Device is ready", map[string]any{"device_id": deviceID})
+	tflog.Info(ctx, "device is ready", map[string]any{"device_id": deviceID})
 
-	tflog.Debug(ctx, "Getting device with enriched properties", map[string]any{"device_id": deviceID})
-	device, _, err := r.client.Devices.Get(ctx, deviceID)
+	_, err = r.refreshDeviceState(ctx, &data, deviceID)
 	if err != nil {
-		response.Diagnostics.AddError("Unable to get device", err.Error())
+		response.Diagnostics.AddError("Unable to refresh device state", err.Error())
 		return
 	}
-	tflog.Debug(ctx, "Got device with enriched properties", map[string]any{"data": device})
-
-	tflog.Debug(ctx, "getting device network info", map[string]any{"device_id": deviceID})
-
-	tflog.Trace(ctx, "getting device network info via API", map[string]any{"device_id": deviceID})
-	deviceNetworks, _, err := r.client.Devices.GetNetworkInfo(ctx, deviceID)
-	if err != nil {
-		response.Diagnostics.AddError("Unable to get device network info", err.Error())
-		return
-	}
-
-	tflog.Debug(ctx, "got device network info", map[string]any{
-		"device_id":     deviceID,
-		"network_count": len(deviceNetworks),
-	})
-
-	primaryDisk := findDiskIDBySize(ctx, int(data.DiskSize.ValueInt64()), device.Storages)
-	swapDisk := findDiskIDBySize(ctx, int(data.SwapDiskSize.ValueInt64()), device.Storages)
-
-	// map API responses to state
-	if primaryDisk != nil {
-		data.DiskID = types.StringValue(primaryDisk.ID)
-	}
-	if swapDisk != nil {
-		data.SwapDiskID = types.StringValue(swapDisk.ID)
-	}
-	data.CPUCoreCount = types.Int64Value(int64(device.CPUCores))
-	data.CPUCoreHotPlug = types.BoolValue(device.CPUCoresHotAddEnabled)
-	data.DisplayName = types.StringValue(device.DisplayName)
-	data.EnableMonitoring = types.BoolValue(false)
-	data.Hostname = types.StringValue(device.HostName)
-	data.ID = types.StringValue(device.ID)
-	data.Memory = types.Int64Value(int64(device.RAM))
-	data.MemoryHotPlug = types.BoolValue(device.RAMHotAddEnabled)
-	data.Networks = populateDeviceNetworkIPv4Addresses(data.Networks, deviceNetworks)
 
 	diags = response.State.Set(ctx, &data)
 	response.Diagnostics.Append(diags...)
@@ -400,52 +364,16 @@ func (r *deviceResource) Read(ctx context.Context, request resource.ReadRequest,
 	}
 
 	deviceID := data.ID.ValueString()
-	tflog.Debug(ctx, "Getting device", map[string]any{"device_id": deviceID})
-	device, resp, err := r.client.Devices.Get(ctx, deviceID)
+	resp, err := r.refreshDeviceState(ctx, &data, deviceID)
 	if err != nil {
 		if resp != nil && resp.StatusCode == http.StatusNotFound {
 			// if the tag is somehow already destroyed, mark as successfully gone
 			response.State.RemoveResource(ctx)
 			return
 		}
-		response.Diagnostics.AddError("Unable to get device", err.Error())
+		response.Diagnostics.AddError("Unable to refresh device state", err.Error())
 		return
 	}
-	tflog.Debug(ctx, "Got device", map[string]any{"data": device})
-
-	tflog.Debug(ctx, "getting device network info", map[string]any{"device_id": deviceID})
-
-	tflog.Trace(ctx, "getting device network info via API", map[string]any{"device_id": deviceID})
-	deviceNetworks, _, err := r.client.Devices.GetNetworkInfo(ctx, deviceID)
-	if err != nil {
-		response.Diagnostics.AddError("Unable to get device network info", err.Error())
-		return
-	}
-
-	tflog.Debug(ctx, "got device network info", map[string]any{
-		"device_id":     deviceID,
-		"network_count": len(deviceNetworks),
-	})
-
-	primaryDisk := findDiskIDBySize(ctx, int(data.DiskSize.ValueInt64()), device.Storages)
-	swapDisk := findDiskIDBySize(ctx, int(data.SwapDiskSize.ValueInt64()), device.Storages)
-
-	// map API responses to state
-	if primaryDisk != nil {
-		data.DiskID = types.StringValue(primaryDisk.ID)
-	}
-	if swapDisk != nil {
-		data.SwapDiskID = types.StringValue(swapDisk.ID)
-	}
-	data.CPUCoreCount = types.Int64Value(int64(device.CPUCores))
-	data.CPUCoreHotPlug = types.BoolValue(device.CPUCoresHotAddEnabled)
-	data.DisplayName = types.StringValue(device.DisplayName)
-	data.EnableMonitoring = types.BoolValue(false)
-	data.Hostname = types.StringValue(device.HostName)
-	data.ID = types.StringValue(device.ID)
-	data.Memory = types.Int64Value(int64(device.RAM))
-	data.MemoryHotPlug = types.BoolValue(device.RAMHotAddEnabled)
-	data.Networks = populateDeviceNetworkIPv4Addresses(data.Networks, deviceNetworks)
 
 	diags = response.State.Set(ctx, &data)
 	response.Diagnostics.Append(diags...)
@@ -467,13 +395,13 @@ func (r *deviceResource) Update(ctx context.Context, request resource.UpdateRequ
 		updateRequest := &xelon.DeviceUpdateRequest{
 			DisplayName: plan.DisplayName.ValueString(),
 		}
-		tflog.Debug(ctx, "Updating device name", map[string]any{"device_id": deviceID, "payload": updateRequest})
+		tflog.Debug(ctx, "updating device name", map[string]any{"device_id": deviceID, "payload": updateRequest})
 		updatedDevice, _, err := r.client.Devices.Update(ctx, deviceID, updateRequest)
 		if err != nil {
 			response.Diagnostics.AddError("Unable to update device name", err.Error())
 			return
 		}
-		tflog.Debug(ctx, "Updated device name", map[string]any{"data": updatedDevice})
+		tflog.Debug(ctx, "updated device name", map[string]any{"data": updatedDevice})
 
 		plan.DisplayName = types.StringValue(updatedDevice.DisplayName)
 	}
@@ -493,21 +421,21 @@ func (r *deviceResource) Update(ctx context.Context, request resource.UpdateRequ
 			ExtendPartition: true,
 			Size:            newDiskSize,
 		}
-		tflog.Debug(ctx, "Updating disk size", map[string]any{"device_id": deviceID, "payload": updateRequest})
+		tflog.Debug(ctx, "updating disk size", map[string]any{"device_id": deviceID, "payload": updateRequest})
 		device, _, err := r.client.Devices.UpdateDisk(ctx, deviceID, updateRequest)
 		if err != nil {
 			response.Diagnostics.AddError("Unable to update disk size", err.Error())
 			return
 		}
-		tflog.Debug(ctx, "Updated disk size", map[string]any{"device_id": deviceID, "data": device})
+		tflog.Debug(ctx, "updated disk size", map[string]any{"device_id": deviceID, "data": device})
 
-		tflog.Info(ctx, "Waiting for disk size to be updated after extension")
+		tflog.Info(ctx, "waiting for disk size to be updated after extension")
 		err = helper.WaitDeviceStateReady(ctx, r.client, deviceID)
 		if err != nil {
 			response.Diagnostics.AddError("Unable to wait for disk size to be updated", err.Error())
 			return
 		}
-		tflog.Info(ctx, "Disk is updated after extension")
+		tflog.Info(ctx, "disk is updated after extension")
 	}
 
 	if !plan.SwapDiskSize.Equal(state.SwapDiskSize) {
@@ -525,36 +453,36 @@ func (r *deviceResource) Update(ctx context.Context, request resource.UpdateRequ
 			ExtendPartition: true,
 			Size:            newSwapDiskSize,
 		}
-		tflog.Debug(ctx, "Updating swap disk size", map[string]any{"device_id": deviceID, "payload": updateRequest})
+		tflog.Debug(ctx, "updating swap disk size", map[string]any{"device_id": deviceID, "payload": updateRequest})
 		device, _, err := r.client.Devices.UpdateDisk(ctx, deviceID, updateRequest)
 		if err != nil {
 			response.Diagnostics.AddError("Unable to update swap disk size", err.Error())
 			return
 		}
-		tflog.Debug(ctx, "Updated swap disk size", map[string]any{"device_id": deviceID, "data": device})
+		tflog.Debug(ctx, "updated swap disk size", map[string]any{"device_id": deviceID, "data": device})
 
-		tflog.Info(ctx, "Waiting for swap disk size to be updated after extension")
+		tflog.Info(ctx, "waiting for swap disk size to be updated after extension")
 		err = helper.WaitDeviceStateReady(ctx, r.client, deviceID)
 		if err != nil {
 			response.Diagnostics.AddError("Unable to wait for swap disk size to be updated", err.Error())
 			return
 		}
-		tflog.Info(ctx, "Swap disk is updated after extension")
+		tflog.Info(ctx, "swap disk is updated after extension")
 	}
 
 	if !plan.CPUCoreCount.Equal(state.CPUCoreCount) || !plan.Memory.Equal(state.Memory) {
 		// device must be stopped before changing CPU count and RAM if hotplug is false
 		deviceMustBeRestarted := !state.CPUCoreHotPlug.ValueBool() || !state.MemoryHotPlug.ValueBool()
 		if deviceMustBeRestarted {
-			tflog.Debug(ctx, "Getting device", map[string]any{"device_id": deviceID})
+			tflog.Debug(ctx, "getting device", map[string]any{"device_id": deviceID})
 			device, _, err := r.client.Devices.Get(ctx, deviceID)
 			if err != nil {
 				response.Diagnostics.AddError("Unable to get device", err.Error())
 				return
 			}
-			tflog.Debug(ctx, "Got device", map[string]any{"data": device})
+			tflog.Debug(ctx, "got device", map[string]any{"data": device})
 			if device.PoweredOn {
-				tflog.Debug(ctx, "Stopping device", map[string]any{"device_id": deviceID})
+				tflog.Debug(ctx, "stopping device", map[string]any{"device_id": deviceID})
 				_, err := r.client.Devices.Stop(ctx, deviceID)
 				if err != nil {
 					response.Diagnostics.AddError("Unable to stop device", err.Error())
@@ -573,25 +501,25 @@ func (r *deviceResource) Update(ctx context.Context, request resource.UpdateRequ
 			CPUCores: int(plan.CPUCoreCount.ValueInt64()),
 			RAM:      int(plan.Memory.ValueInt64()),
 		}
-		tflog.Debug(ctx, "Updating device hardware", map[string]any{"device_id": deviceID, "payload": updateRequest})
+		tflog.Debug(ctx, "updating device hardware", map[string]any{"device_id": deviceID, "payload": updateRequest})
 		updatedDevice, _, err := r.client.Devices.UpdateHardware(ctx, deviceID, updateRequest)
 		if err != nil {
 			response.Diagnostics.AddError("Unable to update device hardware", err.Error())
 			return
 		}
-		tflog.Debug(ctx, "Updated device hardware", map[string]any{"data": updatedDevice})
+		tflog.Debug(ctx, "updated device hardware", map[string]any{"data": updatedDevice})
 
 		// device must be started after changing CUP count and RAM if hotplug is false
 		if deviceMustBeRestarted {
-			tflog.Debug(ctx, "Getting device", map[string]any{"device_id": deviceID})
+			tflog.Debug(ctx, "getting device", map[string]any{"device_id": deviceID})
 			device, _, err := r.client.Devices.Get(ctx, deviceID)
 			if err != nil {
 				response.Diagnostics.AddError("Unable to get device", err.Error())
 				return
 			}
-			tflog.Debug(ctx, "Got device", map[string]any{"data": device})
+			tflog.Debug(ctx, "got device", map[string]any{"data": device})
 			if !device.PoweredOn {
-				tflog.Debug(ctx, "Starting device", map[string]any{"device_id": deviceID})
+				tflog.Debug(ctx, "starting device", map[string]any{"device_id": deviceID})
 				_, err := r.client.Devices.Start(ctx, deviceID)
 				if err != nil {
 					response.Diagnostics.AddError("Unable to start device", err.Error())
@@ -607,24 +535,19 @@ func (r *deviceResource) Update(ctx context.Context, request resource.UpdateRequ
 		}
 
 		// ensure device is in ready state
-		tflog.Info(ctx, "Waiting for device to be ready", map[string]any{"device_id": deviceID})
+		tflog.Info(ctx, "waiting for device to be ready", map[string]any{"device_id": deviceID})
 		err = helper.WaitDeviceStateReady(ctx, r.client, deviceID)
 		if err != nil {
 			response.Diagnostics.AddError("Unable to wait for device to be ready", err.Error())
 			return
 		}
-		tflog.Info(ctx, "Device is ready", map[string]any{"device_id": deviceID})
+		tflog.Info(ctx, "device is ready", map[string]any{"device_id": deviceID})
+	}
 
-		tflog.Debug(ctx, "Getting device with enriched data", map[string]any{"device_id": deviceID})
-		device, _, err := r.client.Devices.Get(ctx, deviceID)
-		if err != nil {
-			response.Diagnostics.AddError("Unable to get device", err.Error())
-			return
-		}
-		tflog.Debug(ctx, "Got device with enriched data", map[string]any{"data": device})
-
-		plan.CPUCoreCount = types.Int64Value(int64(device.CPUCores))
-		plan.Memory = types.Int64Value(int64(device.RAM))
+	_, err := r.refreshDeviceState(ctx, &plan, deviceID)
+	if err != nil {
+		response.Diagnostics.AddError("Unable to refresh device state", err.Error())
+		return
 	}
 
 	diags := response.State.Set(ctx, &plan)
@@ -642,7 +565,7 @@ func (r *deviceResource) Delete(ctx context.Context, request resource.DeleteRequ
 	}
 
 	deviceID := data.ID.ValueString()
-	tflog.Debug(ctx, "Getting device", map[string]any{"device_id": deviceID})
+	tflog.Debug(ctx, "getting device", map[string]any{"device_id": deviceID})
 	device, resp, err := r.client.Devices.Get(ctx, deviceID)
 	if err != nil {
 		if resp != nil && resp.StatusCode == http.StatusNotFound {
@@ -651,10 +574,10 @@ func (r *deviceResource) Delete(ctx context.Context, request resource.DeleteRequ
 		response.Diagnostics.AddError("Unable to get device", err.Error())
 		return
 	}
-	tflog.Debug(ctx, "Got device", map[string]any{"data": device})
+	tflog.Debug(ctx, "got device", map[string]any{"data": device})
 
 	if device.PoweredOn {
-		tflog.Info(ctx, "Stopping device", map[string]any{"data": device})
+		tflog.Info(ctx, "stopping device", map[string]any{"data": device})
 		_, err := r.client.Devices.Stop(ctx, deviceID)
 		if err != nil {
 			response.Diagnostics.AddError("Unable to stop device", err.Error())
@@ -668,13 +591,13 @@ func (r *deviceResource) Delete(ctx context.Context, request resource.DeleteRequ
 		}
 	}
 
-	tflog.Debug(ctx, "Deleting device", map[string]any{"device_id": deviceID})
+	tflog.Debug(ctx, "deleting device", map[string]any{"device_id": deviceID})
 	_, err = r.client.Devices.Delete(ctx, deviceID)
 	if err != nil {
 		response.Diagnostics.AddError("Unable to delete device", err.Error())
 		return
 	}
-	tflog.Debug(ctx, "Deleted device", map[string]any{"device_id": deviceID})
+	tflog.Debug(ctx, "deleted device", map[string]any{"device_id": deviceID})
 }
 
 func (r *deviceResource) ImportState(ctx context.Context, request resource.ImportStateRequest, response *resource.ImportStateResponse) {
@@ -731,6 +654,55 @@ func (r *deviceResource) ModifyPlan(ctx context.Context, request resource.Modify
 	}
 }
 
+func (m *deviceResourceModel) fromAPI(ctx context.Context, device *xelon.Device, deviceNetworks []xelon.DeviceNetwork) {
+	primaryDisk := findDiskIDBySize(ctx, int(m.DiskSize.ValueInt64()), device.Storages)
+	swapDisk := findDiskIDBySize(ctx, int(m.SwapDiskSize.ValueInt64()), device.Storages)
+
+	if primaryDisk != nil {
+		m.DiskID = types.StringValue(primaryDisk.ID)
+	}
+	if swapDisk != nil {
+		m.SwapDiskID = types.StringValue(swapDisk.ID)
+	}
+	m.CPUCoreCount = types.Int64Value(int64(device.CPUCores))
+	m.CPUCoreHotPlug = types.BoolValue(device.CPUCoresHotAddEnabled)
+	m.DisplayName = types.StringValue(device.DisplayName)
+	m.EnableMonitoring = types.BoolValue(false)
+	m.Hostname = types.StringValue(device.HostName)
+	m.ID = types.StringValue(device.ID)
+	m.Memory = types.Int64Value(int64(device.RAM))
+	m.MemoryHotPlug = types.BoolValue(device.RAMHotAddEnabled)
+	m.Networks = populateDeviceNetworkIPv4Addresses(m.Networks, deviceNetworks)
+}
+
+func (r *deviceResource) refreshDeviceState(ctx context.Context, model *deviceResourceModel, deviceID string) (*xelon.Response, error) {
+	tflog.Debug(ctx, "refreshing device state", map[string]any{"device_id": deviceID})
+
+	tflog.Trace(ctx, "getting device via API (state refresh)", map[string]any{"device_id": deviceID})
+	device, resp, err := r.client.Devices.Get(ctx, deviceID)
+	if err != nil {
+		return resp, err
+	}
+	tflog.Trace(ctx, "received device from API", map[string]any{
+		"device_id": deviceID,
+		"data":      device,
+	})
+
+	tflog.Trace(ctx, "getting device network info via API (state refresh)", map[string]any{"device_id": deviceID})
+	deviceNetworks, _, err := r.client.Devices.GetNetworkInfo(ctx, deviceID)
+	if err != nil {
+		return nil, err
+	}
+	tflog.Trace(ctx, "received device network info from API", map[string]any{
+		"device_id":     deviceID,
+		"network_count": len(deviceNetworks),
+	})
+
+	model.fromAPI(ctx, device, deviceNetworks)
+
+	return nil, nil
+}
+
 func populateDeviceNetworkIPv4Addresses(networks []deviceNetworkResourceModel, deviceNetworks []xelon.DeviceNetwork) []deviceNetworkResourceModel {
 	for i := range networks {
 		networks[i].IPAddress = types.StringNull()
@@ -766,7 +738,7 @@ func findDiskIDBySize(ctx context.Context, diskSize int, storages []xelon.Device
 		}
 	}
 	if len(storagesMatchedBySize) == 0 {
-		tflog.Warn(ctx, "No disk with requested size was found", map[string]any{"disk_size": diskSize, "storages": storages})
+		tflog.Warn(ctx, "no disk with requested size was found", map[string]any{"disk_size": diskSize, "storages": storages})
 		return nil
 	}
 
@@ -785,7 +757,7 @@ func deleteSnapshotsIfNeeded(ctx context.Context, client *xelon.Client, deviceID
 		return nil
 	}
 
-	tflog.Info(ctx, "Deleting snapshots for device", map[string]any{
+	tflog.Info(ctx, "deleting snapshots for device", map[string]any{
 		"device_id": deviceID,
 		"snapshots": snapshots,
 	})
@@ -793,13 +765,13 @@ func deleteSnapshotsIfNeeded(ctx context.Context, client *xelon.Client, deviceID
 	for _, snapshot := range snapshots {
 		_, err := client.Snapshots.Delete(ctx, deviceID, snapshot.ID, &xelon.SnapshotDeleteRequest{RemoveChildSnapshots: true})
 		if err != nil {
-			tflog.Error(ctx, "Unable to delete snapshot", map[string]any{
+			tflog.Error(ctx, "unable to delete snapshot", map[string]any{
 				"device_id":   deviceID,
 				"snapshot_id": snapshot.ID,
 			})
 			errs = append(errs, err)
 		}
-		tflog.Debug(ctx, "Deleted snapshot", map[string]any{
+		tflog.Debug(ctx, "deleted snapshot", map[string]any{
 			"device_id":   deviceID,
 			"snapshot_id": snapshot.ID,
 		})
