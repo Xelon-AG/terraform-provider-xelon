@@ -1,4 +1,16 @@
 
+## v1.9.0 (2026-08-11)
+### Bug Fixes
+* **resource/xelon_object_storage_bucket**: require retention for object lock
+### Code Refactoring
+* **resource/xelon_device**: streamline logging messages according new paved path
+* **resource/xelon_device**: consolidate API-to-state mapping
+### Features
+* **resource/xelon_dns_soa**: add import support
+* **resource/xelon_dns_soa**: add resource to manage SOA for DNS zones
+### Maintaining
+* **deps**: bump github.com/hashicorp/terraform-plugin-log
+
 ## v1.8.0 (2026-07-25)
 ### Bug Fixes
 * **resource/xelon_object_storage_user**: add import support
