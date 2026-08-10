@@ -245,11 +245,12 @@ func TestAccResourceXelonObjectStorageBucket_ObjectLock(t *testing.T) {
 		PreCheck:                 func() { testAccPreCheck(t) },
 		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
 		Steps: []resource.TestStep{
-			// Create a locked bucket without a default retention period.
+			// Create a locked bucket with a 30-day retention period.
 			{
 				Config: testAccResourceXelonObjectStorageBucketConfig(userName, bucketName, testAccObjectStorageBucketConfigOptions{
-					ObjectLockEnabled: new(true),
-					VersioningEnabled: true,
+					ObjectLockEnabled:       new(true),
+					ObjectLockRetentionDays: new(30),
+					VersioningEnabled:       true,
 				}),
 				ConfigStateChecks: []statecheck.StateCheck{
 					statecheck.ExpectKnownValue(
@@ -260,7 +261,7 @@ func TestAccResourceXelonObjectStorageBucket_ObjectLock(t *testing.T) {
 					statecheck.ExpectKnownValue(
 						"xelon_object_storage_bucket.test",
 						tfjsonpath.New("object_lock_retention_days"),
-						knownvalue.Null(),
+						knownvalue.Int64Exact(30),
 					),
 					statecheck.ExpectKnownValue(
 						"xelon_object_storage_bucket.test",
@@ -284,11 +285,11 @@ func TestAccResourceXelonObjectStorageBucket_ObjectLock(t *testing.T) {
 				},
 				ImportStateVerify: true,
 			},
-			// Add a 30-day retention period and verify that replacement is required.
+			// Change to a 60-day retention period and verify that replacement is required.
 			{
 				Config: testAccResourceXelonObjectStorageBucketConfig(userName, bucketName, testAccObjectStorageBucketConfigOptions{
 					ObjectLockEnabled:       new(true),
-					ObjectLockRetentionDays: new(30),
+					ObjectLockRetentionDays: new(60),
 					VersioningEnabled:       true,
 				}),
 				ConfigPlanChecks: resource.ConfigPlanChecks{
@@ -300,7 +301,7 @@ func TestAccResourceXelonObjectStorageBucket_ObjectLock(t *testing.T) {
 					statecheck.ExpectKnownValue(
 						"xelon_object_storage_bucket.test",
 						tfjsonpath.New("object_lock_retention_days"),
-						knownvalue.Int64Exact(30),
+						knownvalue.Int64Exact(60),
 					),
 				},
 			},
@@ -319,25 +320,6 @@ func TestAccResourceXelonObjectStorageBucket_ObjectLock(t *testing.T) {
 				},
 				ImportStateVerify: true,
 			},
-			// Remove the retention period and verify that replacement is required.
-			{
-				Config: testAccResourceXelonObjectStorageBucketConfig(userName, bucketName, testAccObjectStorageBucketConfigOptions{
-					ObjectLockEnabled: new(true),
-					VersioningEnabled: true,
-				}),
-				ConfigPlanChecks: resource.ConfigPlanChecks{
-					PreApply: []plancheck.PlanCheck{
-						plancheck.ExpectResourceAction("xelon_object_storage_bucket.test", plancheck.ResourceActionReplace),
-					},
-				},
-				ConfigStateChecks: []statecheck.StateCheck{
-					statecheck.ExpectKnownValue(
-						"xelon_object_storage_bucket.test",
-						tfjsonpath.New("object_lock_retention_days"),
-						knownvalue.Null(),
-					),
-				},
-			},
 		},
 	})
 }
@@ -353,10 +335,19 @@ func TestAccResourceXelonObjectStorageBucket_InvalidObjectLockConfiguration(t *t
 			// Reject Object Lock when versioning is disabled.
 			{
 				Config: testAccResourceXelonObjectStorageBucketConfig(userName, bucketName, testAccObjectStorageBucketConfigOptions{
-					ObjectLockEnabled: new(true),
-					VersioningEnabled: false,
+					ObjectLockEnabled:       new(true),
+					ObjectLockRetentionDays: new(30),
+					VersioningEnabled:       false,
 				}),
 				ExpectError: regexp.MustCompile("versioning_enabled.*must be true"),
+			},
+			// Reject Object Lock without a retention period before calling the API.
+			{
+				Config: testAccResourceXelonObjectStorageBucketConfig(userName, bucketName, testAccObjectStorageBucketConfigOptions{
+					ObjectLockEnabled: new(true),
+					VersioningEnabled: true,
+				}),
+				ExpectError: regexp.MustCompile("Object Lock requires retention"),
 			},
 			// Reject retention days when Object Lock is not enabled.
 			{
@@ -387,8 +378,9 @@ func TestAccResourceXelonObjectStorageBucket_ObjectLockChangeForcesReplacement(t
 			// Enable Object Lock and verify that replacement is required.
 			{
 				Config: testAccResourceXelonObjectStorageBucketConfig(userName, bucketName, testAccObjectStorageBucketConfigOptions{
-					ObjectLockEnabled: new(true),
-					VersioningEnabled: true,
+					ObjectLockEnabled:       new(true),
+					ObjectLockRetentionDays: new(30),
+					VersioningEnabled:       true,
 				}),
 				ConfigPlanChecks: resource.ConfigPlanChecks{
 					PreApply: []plancheck.PlanCheck{

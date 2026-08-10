@@ -5,7 +5,7 @@ subcategory: ""
 description: |-
   The object storage bucket resource allows you to manage an S3-compatible bucket in Xelon Object Storage.
   A bucket belongs to an object storage user and is created in that user's region. Versioning can be managed through this resource.
-  Object Lock is optional and defaults to disabled. Object Lock can only be enabled when a bucket is created. When Object Lock is enabled, versioning is required, and bucket deletion fails while retained objects remain.
+  Object Lock is optional and defaults to disabled. Object Lock can only be enabled when a bucket is created. Creating a bucket with Object Lock requires versioning and a retention period. Bucket deletion fails while retained objects remain.
 ---
 
 # xelon_object_storage_bucket (Resource)
@@ -13,14 +13,14 @@ description: |-
 The object storage bucket resource allows you to manage an S3-compatible bucket in Xelon Object Storage.
 
 A bucket belongs to an object storage user and is created in that user's region. Versioning can be managed through this resource.
-Object Lock is optional and defaults to disabled. Object Lock can only be enabled when a bucket is created. When Object Lock is enabled, versioning is required, and bucket deletion fails while retained objects remain.
+Object Lock is optional and defaults to disabled. Object Lock can only be enabled when a bucket is created. Creating a bucket with Object Lock requires versioning and a retention period. Bucket deletion fails while retained objects remain.
 
 ## Object Lock behavior
 
 - Object Lock is optional and disabled by default.
-- To enable Object Lock, set both `object_lock_enabled = true` and `versioning_enabled = true`.
+- To create a bucket with Object Lock, set `object_lock_enabled = true`, `versioning_enabled = true`, and provide `object_lock_retention_days` between `1` and `36500`.
 - Object Lock settings are immutable after bucket creation. Changing `object_lock_enabled` or `object_lock_retention_days` requires replacing the bucket.
-- `object_lock_retention_days` is optional. When Object Lock is enabled and this value is omitted, the bucket has no default retention period.
+- Historical Object-Locked buckets created without default retention remain supported while their identity is unchanged. Replacing such a bucket requires configuring `object_lock_retention_days`.
 - Deleting an Object-Locked bucket may fail while retained objects remain in the bucket.
 - When importing an existing Object-Locked bucket, the Terraform configuration must explicitly match its immutable Object Lock settings.
 
@@ -86,7 +86,7 @@ resource "xelon_object_storage_bucket" "example_locked" {
 ### Optional
 
 - `object_lock_enabled` (Boolean) Whether Object Lock is enabled for the bucket. Object Lock requires versioning, can only be enabled when the bucket is created, and cannot be disabled. Changing this value requires replacing the bucket.
-- `object_lock_retention_days` (Number) The default Object Lock retention period, in days, applied to new object versions. This value can only be configured when Object Lock is enabled. When omitted, the bucket has no default retention period. Changing this value requires replacing the bucket.
+- `object_lock_retention_days` (Number) The default Object Lock retention period, in days, applied to new object versions. This value is required when creating a bucket with Object Lock enabled and cannot be configured when Object Lock is disabled. Historical Object-Locked buckets created without default retention remain supported. Changing this value requires replacing the bucket.
 - `versioning_enabled` (Boolean) Whether bucket versioning is enabled.
 
 ### Read-Only
