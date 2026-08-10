@@ -11,6 +11,7 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/schema/validator"
 	"github.com/hashicorp/terraform-plugin-framework/tfsdk"
 	"github.com/hashicorp/terraform-plugin-framework/types"
+	"github.com/hashicorp/terraform-plugin-go/tftypes"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
@@ -56,7 +57,7 @@ func TestResourceXelonObjectStorageBucket_ValidateConfig(t *testing.T) {
 		"object lock enabled with versioning disabled is rejected": {
 			model: testObjectStorageBucketModel(
 				types.BoolValue(true),
-				types.Int64Null(),
+				types.Int64Value(30),
 				types.BoolValue(false),
 			),
 			expectHasError:  true,
@@ -83,7 +84,7 @@ func TestResourceXelonObjectStorageBucket_ValidateConfig(t *testing.T) {
 			expectedSummary: "Object Lock retention requires Object Lock",
 			expectedPath:    path.Root("object_lock_retention_days"),
 		},
-		"object lock enabled with versioning and no retention is valid": {
+		"object lock enabled with versioning and no retention is deferred to plan validation": {
 			model: testObjectStorageBucketModel(
 				types.BoolValue(true),
 				types.Int64Null(),
@@ -131,6 +132,179 @@ func TestResourceXelonObjectStorageBucket_ValidateConfig(t *testing.T) {
 				require.True(t, ok)
 				assert.Equal(t, testCase.expectedPath.String(), diagnosticWithPath.Path().String())
 			}
+		})
+	}
+}
+
+func TestResourceXelonObjectStorageBucket_ModifyPlan_ObjectLockRetention(t *testing.T) {
+	historicalState := testObjectStorageBucketModel(
+		types.BoolValue(true),
+		types.Int64Null(),
+		types.BoolValue(true),
+	)
+	historicalNameChangedPlan := historicalState
+	historicalNameChangedPlan.Name = types.StringValue("replacement-bucket")
+	historicalUserChangedPlan := historicalState
+	historicalUserChangedPlan.ObjectStorageUserID = types.StringValue("replacement-user-id")
+	historicalUnknownNamePlan := historicalState
+	historicalUnknownNamePlan.Name = types.StringUnknown()
+	historicalUnknownUserPlan := historicalState
+	historicalUnknownUserPlan.ObjectStorageUserID = types.StringUnknown()
+
+	retainedState := historicalState
+	retainedState.ObjectLockRetentionDays = types.Int64Value(30)
+	unlockedState := historicalState
+	unlockedState.ObjectLockEnabled = types.BoolValue(false)
+
+	testCases := map[string]struct {
+		plan           objectStorageBucketResourceModel
+		state          objectStorageBucketResourceModel
+		planIsNull     bool
+		stateIsNull    bool
+		expectHasError bool
+	}{
+		"new locked bucket without retention is rejected": {
+			plan:           historicalState,
+			stateIsNull:    true,
+			expectHasError: true,
+		},
+		"new locked bucket with retention is allowed": {
+			plan:        retainedState,
+			stateIsNull: true,
+		},
+		"unchanged historical bucket is allowed": {
+			plan:  historicalState,
+			state: historicalState,
+		},
+		"historical bucket name change is rejected": {
+			plan:           historicalNameChangedPlan,
+			state:          historicalState,
+			expectHasError: true,
+		},
+		"historical bucket user change is rejected": {
+			plan:           historicalUserChangedPlan,
+			state:          historicalState,
+			expectHasError: true,
+		},
+		"retention removal is rejected": {
+			plan:           historicalState,
+			state:          retainedState,
+			expectHasError: true,
+		},
+		"enabling Object Lock without retention is rejected": {
+			plan:           historicalState,
+			state:          unlockedState,
+			expectHasError: true,
+		},
+		"unknown retention is deferred": {
+			plan: testObjectStorageBucketModel(
+				types.BoolValue(true),
+				types.Int64Unknown(),
+				types.BoolValue(true),
+			),
+			stateIsNull: true,
+		},
+		"unknown Object Lock is deferred": {
+			plan: testObjectStorageBucketModel(
+				types.BoolUnknown(),
+				types.Int64Null(),
+				types.BoolValue(true),
+			),
+			stateIsNull: true,
+		},
+		"unknown historical bucket name is deferred": {
+			plan:  historicalUnknownNamePlan,
+			state: historicalState,
+		},
+		"unknown historical bucket user is deferred": {
+			plan:  historicalUnknownUserPlan,
+			state: historicalState,
+		},
+		"destroy plan is allowed": {
+			planIsNull: true,
+			state:      historicalState,
+		},
+	}
+
+	for name, testCase := range testCases {
+		t.Run(name, func(t *testing.T) {
+			response := testObjectStorageBucketModifyPlanResponse(t, testCase.plan, testCase.state, testCase.planIsNull, testCase.stateIsNull)
+
+			assert.Equal(t, testCase.expectHasError, response.Diagnostics.HasError())
+			if testCase.expectHasError {
+				require.Len(t, response.Diagnostics, 1)
+				assert.Equal(t, "Object Lock requires retention", response.Diagnostics[0].Summary())
+				diagnosticWithPath, ok := response.Diagnostics[0].(diag.DiagnosticWithPath)
+				require.True(t, ok)
+				assert.Equal(t, path.Root("object_lock_retention_days").String(), diagnosticWithPath.Path().String())
+			}
+		})
+	}
+}
+
+func TestResourceXelonObjectStorageBucket_Create_ObjectLockInvariant(t *testing.T) {
+	testCases := map[string]struct {
+		model           objectStorageBucketResourceModel
+		expectedSummary string
+		expectedPath    path.Path
+	}{
+		"missing retention is rejected": {
+			model: testObjectStorageBucketModel(
+				types.BoolValue(true),
+				types.Int64Null(),
+				types.BoolValue(true),
+			),
+			expectedSummary: "Object Lock requires retention",
+			expectedPath:    path.Root("object_lock_retention_days"),
+		},
+		"unknown retention is rejected": {
+			model: testObjectStorageBucketModel(
+				types.BoolValue(true),
+				types.Int64Unknown(),
+				types.BoolValue(true),
+			),
+			expectedSummary: "Object Lock requires retention",
+			expectedPath:    path.Root("object_lock_retention_days"),
+		},
+		"disabled versioning is rejected": {
+			model: testObjectStorageBucketModel(
+				types.BoolValue(true),
+				types.Int64Value(30),
+				types.BoolValue(false),
+			),
+			expectedSummary: "Object Lock requires versioning",
+			expectedPath:    path.Root("versioning_enabled"),
+		},
+		"retention below minimum is rejected": {
+			model: testObjectStorageBucketModel(
+				types.BoolValue(true),
+				types.Int64Value(objectStorageBucketObjectLockRetentionDaysMinimum-1),
+				types.BoolValue(true),
+			),
+			expectedSummary: "Invalid Object Lock retention",
+			expectedPath:    path.Root("object_lock_retention_days"),
+		},
+		"retention above maximum is rejected": {
+			model: testObjectStorageBucketModel(
+				types.BoolValue(true),
+				types.Int64Value(objectStorageBucketObjectLockRetentionDaysMaximum+1),
+				types.BoolValue(true),
+			),
+			expectedSummary: "Invalid Object Lock retention",
+			expectedPath:    path.Root("object_lock_retention_days"),
+		},
+	}
+
+	for name, testCase := range testCases {
+		t.Run(name, func(t *testing.T) {
+			response := testObjectStorageBucketCreateResponse(t, testCase.model)
+
+			require.True(t, response.Diagnostics.HasError())
+			require.Len(t, response.Diagnostics, 1)
+			assert.Equal(t, testCase.expectedSummary, response.Diagnostics[0].Summary())
+			diagnosticWithPath, ok := response.Diagnostics[0].(diag.DiagnosticWithPath)
+			require.True(t, ok)
+			assert.Equal(t, testCase.expectedPath.String(), diagnosticWithPath.Path().String())
 		})
 	}
 }
@@ -305,6 +479,60 @@ func testObjectStorageBucketValidateConfigResponse(t *testing.T, model objectSto
 	response := &resource.ValidateConfigResponse{}
 	NewObjectStorageBucketResource().(*objectStorageBucketResource).ValidateConfig(ctx, resource.ValidateConfigRequest{
 		Config: config,
+	}, response)
+
+	return response
+}
+
+func testObjectStorageBucketModifyPlanResponse(
+	t *testing.T,
+	planModel objectStorageBucketResourceModel,
+	stateModel objectStorageBucketResourceModel,
+	planIsNull bool,
+	stateIsNull bool,
+) *resource.ModifyPlanResponse {
+	t.Helper()
+
+	ctx := context.Background()
+	bucketSchema := testObjectStorageBucketResourceSchema(t)
+	terraformType := bucketSchema.Type().TerraformType(ctx)
+
+	plan := tfsdk.Plan{
+		Schema: bucketSchema,
+		Raw:    tftypes.NewValue(terraformType, nil),
+	}
+	if !planIsNull {
+		plan = testObjectStorageBucketResourcePlan(t, ctx, bucketSchema, planModel)
+	}
+
+	state := tfsdk.State{
+		Schema: bucketSchema,
+		Raw:    tftypes.NewValue(terraformType, nil),
+	}
+	if !stateIsNull {
+		statePlan := testObjectStorageBucketResourcePlan(t, ctx, bucketSchema, stateModel)
+		state.Raw = statePlan.Raw
+	}
+
+	response := &resource.ModifyPlanResponse{}
+	NewObjectStorageBucketResource().(*objectStorageBucketResource).ModifyPlan(ctx, resource.ModifyPlanRequest{
+		Plan:  plan,
+		State: state,
+	}, response)
+
+	return response
+}
+
+func testObjectStorageBucketCreateResponse(t *testing.T, model objectStorageBucketResourceModel) *resource.CreateResponse {
+	t.Helper()
+
+	ctx := context.Background()
+	bucketSchema := testObjectStorageBucketResourceSchema(t)
+	plan := testObjectStorageBucketResourcePlan(t, ctx, bucketSchema, model)
+
+	response := &resource.CreateResponse{}
+	NewObjectStorageBucketResource().(*objectStorageBucketResource).Create(ctx, resource.CreateRequest{
+		Plan: plan,
 	}, response)
 
 	return response

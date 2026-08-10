@@ -29,10 +29,14 @@ var (
 	_ resource.Resource                   = (*objectStorageBucketResource)(nil)
 	_ resource.ResourceWithConfigure      = (*objectStorageBucketResource)(nil)
 	_ resource.ResourceWithImportState    = (*objectStorageBucketResource)(nil)
+	_ resource.ResourceWithModifyPlan     = (*objectStorageBucketResource)(nil)
 	_ resource.ResourceWithValidateConfig = (*objectStorageBucketResource)(nil)
 )
 
-const objectStorageBucketObjectLockRetentionDaysMaximum int64 = 36500
+const (
+	objectStorageBucketObjectLockRetentionDaysMinimum int64 = 1
+	objectStorageBucketObjectLockRetentionDaysMaximum int64 = 36500
+)
 
 // objectStorageBucketResource is the object storage bucket resource implementation.
 type objectStorageBucketResource struct {
@@ -67,7 +71,7 @@ func (r *objectStorageBucketResource) Schema(_ context.Context, _ resource.Schem
 The object storage bucket resource allows you to manage an S3-compatible bucket in Xelon Object Storage.
 
 A bucket belongs to an object storage user and is created in that user's region. Versioning can be managed through this resource.
-Object Lock is optional and defaults to disabled. Object Lock can only be enabled when a bucket is created. When Object Lock is enabled, versioning is required, and bucket deletion fails while retained objects remain.
+Object Lock is optional and defaults to disabled. Object Lock can only be enabled when a bucket is created. Creating a bucket with Object Lock requires versioning and a retention period. Bucket deletion fails while retained objects remain.
 `,
 		Version: 0,
 		Attributes: map[string]schema.Attribute{
@@ -107,14 +111,15 @@ Object Lock is optional and defaults to disabled. Object Lock can only be enable
 			},
 			"object_lock_retention_days": schema.Int64Attribute{
 				MarkdownDescription: "The default Object Lock retention period, in days, applied to new object versions. " +
-					"This value can only be configured when Object Lock is enabled. When omitted, the bucket has no default retention period. " +
+					"This value is required when creating a bucket with Object Lock enabled and cannot be configured when Object Lock is disabled. " +
+					"Historical Object-Locked buckets created without default retention remain supported. " +
 					"Changing this value requires replacing the bucket.",
 				Optional: true,
 				PlanModifiers: []planmodifier.Int64{
 					int64planmodifier.RequiresReplace(),
 				},
 				Validators: []validator.Int64{
-					int64validator.Between(1, objectStorageBucketObjectLockRetentionDaysMaximum),
+					int64validator.Between(objectStorageBucketObjectLockRetentionDaysMinimum, objectStorageBucketObjectLockRetentionDaysMaximum),
 				},
 			},
 			"region_replication_enabled": schema.BoolAttribute{
@@ -180,6 +185,39 @@ func (r *objectStorageBucketResource) Create(ctx context.Context, request resour
 	response.Diagnostics.Append(diags...)
 	if response.Diagnostics.HasError() {
 		return
+	}
+
+	if !data.ObjectLockEnabled.IsNull() &&
+		!data.ObjectLockEnabled.IsUnknown() &&
+		data.ObjectLockEnabled.ValueBool() {
+		if data.VersioningEnabled.IsNull() ||
+			data.VersioningEnabled.IsUnknown() ||
+			!data.VersioningEnabled.ValueBool() {
+			response.Diagnostics.AddAttributeError(
+				path.Root("versioning_enabled"),
+				"Object Lock requires versioning",
+				`Attribute "versioning_enabled" must be true when "object_lock_enabled" is true.`,
+			)
+		}
+
+		if data.ObjectLockRetentionDays.IsNull() || data.ObjectLockRetentionDays.IsUnknown() {
+			response.Diagnostics.AddAttributeError(
+				path.Root("object_lock_retention_days"),
+				"Object Lock requires retention",
+				`Attribute "object_lock_retention_days" must be configured when creating or replacing a bucket with "object_lock_enabled" set to true.`,
+			)
+		} else if retentionDays := data.ObjectLockRetentionDays.ValueInt64(); retentionDays < objectStorageBucketObjectLockRetentionDaysMinimum ||
+			retentionDays > objectStorageBucketObjectLockRetentionDaysMaximum {
+			response.Diagnostics.AddAttributeError(
+				path.Root("object_lock_retention_days"),
+				"Invalid Object Lock retention",
+				`Attribute "object_lock_retention_days" must be between 1 and 36500.`,
+			)
+		}
+
+		if response.Diagnostics.HasError() {
+			return
+		}
 	}
 
 	userID := data.ObjectStorageUserID.ValueString()
@@ -398,6 +436,51 @@ func (r *objectStorageBucketResource) ImportState(ctx context.Context, request r
 
 	response.Diagnostics.Append(response.State.SetAttribute(ctx, path.Root("user_id"), userID)...)
 	response.Diagnostics.Append(response.State.SetAttribute(ctx, path.Root("name"), bucketName)...)
+}
+
+func (r *objectStorageBucketResource) ModifyPlan(ctx context.Context, request resource.ModifyPlanRequest, response *resource.ModifyPlanResponse) {
+	if request.Plan.Raw.IsNull() {
+		return
+	}
+
+	var plan objectStorageBucketResourceModel
+	response.Diagnostics.Append(request.Plan.Get(ctx, &plan)...)
+	if response.Diagnostics.HasError() {
+		return
+	}
+
+	if plan.ObjectLockEnabled.IsUnknown() || plan.ObjectLockRetentionDays.IsUnknown() {
+		return
+	}
+	if plan.ObjectLockEnabled.IsNull() || !plan.ObjectLockEnabled.ValueBool() || !plan.ObjectLockRetentionDays.IsNull() {
+		return
+	}
+
+	if !request.State.Raw.IsNull() {
+		if plan.Name.IsUnknown() || plan.ObjectStorageUserID.IsUnknown() {
+			return
+		}
+
+		var state objectStorageBucketResourceModel
+		response.Diagnostics.Append(request.State.Get(ctx, &state)...)
+		if response.Diagnostics.HasError() {
+			return
+		}
+
+		isSameHistoricalBucket := state.ObjectLockEnabled.Equal(types.BoolValue(true)) &&
+			state.ObjectLockRetentionDays.IsNull() &&
+			plan.Name.Equal(state.Name) &&
+			plan.ObjectStorageUserID.Equal(state.ObjectStorageUserID)
+		if isSameHistoricalBucket {
+			return
+		}
+	}
+
+	response.Diagnostics.AddAttributeError(
+		path.Root("object_lock_retention_days"),
+		"Object Lock requires retention",
+		`Attribute "object_lock_retention_days" must be configured when creating or replacing a bucket with "object_lock_enabled" set to true.`,
+	)
 }
 
 func (r *objectStorageBucketResource) ValidateConfig(ctx context.Context, request resource.ValidateConfigRequest, response *resource.ValidateConfigResponse) {
