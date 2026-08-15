@@ -1,4 +1,9 @@
 
+## v1.10.0 (2026-08-15)
+### Features
+* **datasource/xelon_backup_plan**: add backup plan lookup
+* **resource/xelon_device_backup**: add resource to manage backup plan assignments
+
 ## v1.9.0 (2026-08-11)
 ### Bug Fixes
 * **resource/xelon_object_storage_bucket**: require retention for object lock
