@@ -197,16 +197,18 @@ Devices are the virtual machines that run your applications.
 				},
 			},
 			"script_id": schema.StringAttribute{
-				MarkdownDescription: "The ID of the script to be executed during the device setup.",
+				MarkdownDescription: "The ID of the script to be executed during the device setup. Changing this forces a new device to be created.",
 				Optional:            true,
 				PlanModifiers: []planmodifier.String{
+					stringplanmodifier.RequiresReplace(),
 					stringplanmodifier.UseStateForUnknown(),
 				},
 			},
 			"ssh_key_id": schema.StringAttribute{
-				MarkdownDescription: "The ID of the SSH key to be used for authentication.",
+				MarkdownDescription: "The ID of the SSH key to be used for authentication. Changing this forces a new device to be created.",
 				Optional:            true,
 				PlanModifiers: []planmodifier.String{
+					stringplanmodifier.RequiresReplace(),
 					stringplanmodifier.UseStateForUnknown(),
 				},
 			},
@@ -306,6 +308,12 @@ func (r *deviceResource) Create(ctx context.Context, request resource.CreateRequ
 			UserData: data.UserData.ValueString(),
 		}
 	}
+	if data.ScriptID.ValueString() != "" {
+		createRequest.ScriptID = data.ScriptID.ValueString()
+	}
+	if data.SSHKeyID.ValueString() != "" {
+		createRequest.SSHKeyID = data.SSHKeyID.ValueString()
+	}
 	if data.CPUCoreHotPlug.ValueBool() {
 		createRequest.EnableCPUCoresHotAdd = data.CPUCoreHotPlug.ValueBool()
 	}
@@ -315,6 +323,8 @@ func (r *deviceResource) Create(ctx context.Context, request resource.CreateRequ
 	tflog.Debug(ctx, "creating device", map[string]any{
 		"display_name": data.DisplayName.ValueString(),
 		"hostname":     data.Hostname.ValueString(),
+		"script_id":    data.ScriptID.ValueString(),
+		"ssh_key_id":   data.SSHKeyID.ValueString(),
 		"template_id":  data.TemplateID.ValueString(),
 		"tenant_id":    data.TenantID.ValueString(),
 	})
