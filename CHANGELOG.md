@@ -1,4 +1,8 @@
 
+## Unreleased
+### Features
+* **datasource/xelon_firewall**: add firewall lookup
+
 ## v1.10.0 (2026-08-15)
 ### Features
 * **datasource/xelon_backup_plan**: add backup plan lookup
