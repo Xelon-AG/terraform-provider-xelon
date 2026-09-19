@@ -14,7 +14,6 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/boolplanmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/int64planmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/planmodifier"
-	"github.com/hashicorp/terraform-plugin-framework/resource/schema/setplanmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/stringplanmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/schema/validator"
 	"github.com/hashicorp/terraform-plugin-framework/types"
@@ -222,15 +221,12 @@ Devices are the virtual machines that run your applications.
 			},
 			"ssh_key_ids": schema.SetAttribute{
 				MarkdownDescription: "The IDs of the SSH keys installed on the device. When set, this is the complete list: " +
-					"keys added outside of Terraform are removed on the next apply. Changes add the new keys " +
-					"before removing the old ones, without recreating the device. After creation, keys can only " +
-					"be changed on Linux devices that were not created from a cloud-init or Ignition template.",
+					"keys added outside of Terraform are removed on the next apply. When not set, the keys on the " +
+					"device are not managed. Changes add the new keys before removing the old ones, without " +
+					"recreating the device. After creation, keys can only be changed on Linux devices that were " +
+					"not created from a cloud-init or Ignition template.",
 				ElementType: types.StringType,
 				Optional:    true,
-				Computed:    true,
-				PlanModifiers: []planmodifier.Set{
-					setplanmodifier.UseStateForUnknown(),
-				},
 			},
 			"swap_disk_id": schema.StringAttribute{
 				MarkdownDescription: "The ID of the swap disk.",
@@ -406,10 +402,6 @@ func (r *deviceResource) Create(ctx context.Context, request resource.CreateRequ
 		response.Diagnostics.AddError("Unable to refresh device state", err.Error())
 		return
 	}
-	response.Diagnostics.Append(r.refreshSSHKeys(ctx, &data, deviceID)...)
-	if response.Diagnostics.HasError() {
-		return
-	}
 
 	diags = response.State.Set(ctx, &data)
 	response.Diagnostics.Append(diags...)
@@ -437,10 +429,12 @@ func (r *deviceResource) Read(ctx context.Context, request resource.ReadRequest,
 		return
 	}
 
-	// the device show endpoint does not return ssh keys, so they are listed separately
-	response.Diagnostics.Append(r.refreshSSHKeys(ctx, &data, deviceID)...)
-	if response.Diagnostics.HasError() {
-		return
+	// the device show endpoint does not return ssh keys, so managed keys are listed separately
+	if !data.SSHKeyIDs.IsNull() {
+		response.Diagnostics.Append(r.refreshSSHKeys(ctx, &data, deviceID)...)
+		if response.Diagnostics.HasError() {
+			return
+		}
 	}
 
 	diags = response.State.Set(ctx, &data)
@@ -469,11 +463,24 @@ func (r *deviceResource) Update(ctx context.Context, request resource.UpdateRequ
 	if !configSSHKeyIDs.IsNull() {
 		// ssh_key_ids is the complete list, so the keys on the device are compared against it
 		response.Diagnostics.Append(configSSHKeyIDs.ElementsAs(ctx, &desiredSSHKeyIDs, false)...)
-		if !state.SSHKeyIDs.IsNull() && !state.SSHKeyIDs.IsUnknown() {
-			response.Diagnostics.Append(state.SSHKeyIDs.ElementsAs(ctx, &currentSSHKeyIDs, false)...)
-		}
 		if response.Diagnostics.HasError() {
 			return
+		}
+		if !state.SSHKeyIDs.IsNull() {
+			response.Diagnostics.Append(state.SSHKeyIDs.ElementsAs(ctx, &currentSSHKeyIDs, false)...)
+			if response.Diagnostics.HasError() {
+				return
+			}
+		} else {
+			// first apply after import or after switching from ssh_key_id: start from the device itself
+			sshKeys, _, err := r.client.Devices.ListSSHKeys(ctx, deviceID)
+			if err != nil {
+				response.Diagnostics.AddError("Unable to list device SSH keys", err.Error())
+				return
+			}
+			for _, sshKey := range sshKeys {
+				currentSSHKeyIDs = append(currentSSHKeyIDs, sshKey.ID)
+			}
 		}
 	} else if !plan.SSHKeyID.Equal(state.SSHKeyID) {
 		if sshKeyID := state.SSHKeyID.ValueString(); sshKeyID != "" {
@@ -488,10 +495,6 @@ func (r *deviceResource) Update(ctx context.Context, request resource.UpdateRequ
 		err := r.syncSSHKeys(ctx, deviceID, toAdd, toRemove)
 		if err != nil {
 			response.Diagnostics.AddError("Unable to update device SSH keys", err.Error())
-			return
-		}
-		response.Diagnostics.Append(r.refreshSSHKeys(ctx, &plan, deviceID)...)
-		if response.Diagnostics.HasError() {
 			return
 		}
 	}
@@ -729,19 +732,6 @@ func (r *deviceResource) ModifyPlan(ctx context.Context, request resource.Modify
 			return
 		}
 
-		// ssh_key_ids mirrors the device when it is not configured, so changing ssh_key_id
-		// changes it too; plan it as unknown instead of keeping the stale state value
-		if !request.Config.Raw.IsNull() && !plan.SSHKeyID.Equal(state.SSHKeyID) {
-			var configSSHKeyIDs types.Set
-			response.Diagnostics.Append(request.Config.GetAttribute(ctx, path.Root("ssh_key_ids"), &configSSHKeyIDs)...)
-			if response.Diagnostics.HasError() {
-				return
-			}
-			if configSSHKeyIDs.IsNull() {
-				response.Diagnostics.Append(response.Plan.SetAttribute(ctx, path.Root("ssh_key_ids"), types.SetUnknown(types.StringType))...)
-			}
-		}
-
 		requiresCreateInputs = !plan.Password.Equal(state.Password) ||
 			!plan.TemplateID.Equal(state.TemplateID) ||
 			!plan.UserData.Equal(state.UserData)
@@ -820,9 +810,9 @@ func (r *deviceResource) syncSSHKeys(ctx context.Context, deviceID string, toAdd
 	return nil
 }
 
-// refreshSSHKeys sets ssh_key_ids to the keys listed on the device, and clears ssh_key_id when
-// that key is gone so the next apply adds it back. Only Linux devices list their keys; on other
-// templates the configured keys are kept as they are.
+// refreshSSHKeys sets ssh_key_ids to the keys listed on the device, so keys added or removed
+// outside of Terraform show up as a diff. Only Linux devices list their keys; on other templates
+// the configured keys are kept as they are.
 func (r *deviceResource) refreshSSHKeys(ctx context.Context, model *deviceResourceModel, deviceID string) diag.Diagnostics {
 	var diags diag.Diagnostics
 
@@ -831,17 +821,7 @@ func (r *deviceResource) refreshSSHKeys(ctx context.Context, model *deviceResour
 		diags.AddError("Unable to get device template", err.Error())
 		return diags
 	}
-
 	if !listsSSHKeys {
-		if model.SSHKeyIDs.IsNull() || model.SSHKeyIDs.IsUnknown() {
-			sshKeyIDs := []string{}
-			if sshKeyID := model.SSHKeyID.ValueString(); sshKeyID != "" {
-				sshKeyIDs = append(sshKeyIDs, sshKeyID)
-			}
-			var setDiags diag.Diagnostics
-			model.SSHKeyIDs, setDiags = types.SetValueFrom(ctx, types.StringType, sshKeyIDs)
-			diags.Append(setDiags...)
-		}
 		return diags
 	}
 
@@ -858,11 +838,6 @@ func (r *deviceResource) refreshSSHKeys(ctx context.Context, model *deviceResour
 	var setDiags diag.Diagnostics
 	model.SSHKeyIDs, setDiags = types.SetValueFrom(ctx, types.StringType, sshKeyIDs)
 	diags.Append(setDiags...)
-
-	if sshKeyID := model.SSHKeyID.ValueString(); sshKeyID != "" && !slices.Contains(sshKeyIDs, sshKeyID) {
-		tflog.Warn(ctx, "ssh key is no longer assigned to the device", map[string]any{"device_id": deviceID, "ssh_key_id": sshKeyID})
-		model.SSHKeyID = types.StringNull()
-	}
 
 	return diags
 }

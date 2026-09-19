@@ -59,7 +59,7 @@ func TestResourceXelonDevice_Schema_SSHKeyIDs(t *testing.T) {
 	sshKeyIDs, ok := deviceSchema.Attributes["ssh_key_ids"].(schema.SetAttribute)
 	require.True(t, ok)
 	assert.True(t, sshKeyIDs.Optional)
-	assert.True(t, sshKeyIDs.Computed)
+	assert.False(t, sshKeyIDs.Computed)
 	assert.Equal(t, types.StringType, sshKeyIDs.ElementType)
 
 	sshKeyID, ok := deviceSchema.Attributes["ssh_key_id"].(schema.StringAttribute)
