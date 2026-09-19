@@ -57,9 +57,10 @@ resource "xelon_device" "server" {
 - `enable_monitoring` (Boolean, Deprecated) Whether to enable monitoring for the device.
 - `memory_hotplug` (Boolean) If `true`, enables memory hot‑plug functionality for the device. It allows dynamically increasing or decreasing the amount of RAM without powering off the device.
 - `password` (String, Sensitive) The password for the device root or administrator user. Required if `user_data` is empty.
-- `script_id` (String) The ID of the script to be executed during the device setup.
+- `script_id` (String) The ID of the script to be executed during the device setup. Changing this forces a new device to be created.
 - `send_email` (Boolean) Whether to send an email notification upon successful device creation.
-- `ssh_key_id` (String) The ID of the SSH key to be used for authentication.
+- `ssh_key_id` (String, Deprecated) The ID of the SSH key to be used for authentication. Changing this adds the new key to the device and then removes the old one, without recreating the device. Use `ssh_key_ids` instead.
+- `ssh_key_ids` (Set of String) The IDs of the SSH keys installed on the device. When set, this is the complete list: keys added outside of Terraform are removed on the next apply. When not set, the keys on the device are not managed. Changes add the new keys before removing the old ones, without recreating the device. After creation, keys can only be changed on Linux devices that were not created from a cloud-init or Ignition template.
 - `swap_disk_size` (Number) The size of the swap disk in GB. Required if `user_data` is empty.
 - `user_data` (String) User data to provide when launching the device. Updates to this field will force a new resource to be created.
 
