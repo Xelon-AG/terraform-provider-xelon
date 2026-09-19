@@ -59,7 +59,7 @@ resource "xelon_device" "server" {
 - `password` (String, Sensitive) The password for the device root or administrator user. Required if `user_data` is empty.
 - `script_id` (String) The ID of the script to be executed during the device setup. Changing this forces a new device to be created.
 - `send_email` (Boolean) Whether to send an email notification upon successful device creation.
-- `ssh_key_id` (String) The ID of the SSH key to be used for authentication. Changing this forces a new device to be created.
+- `ssh_key_id` (String) The ID of the SSH key to be used for authentication. Changing this adds the new key to the device and then removes the old one, without recreating the device. Changes after creation are only supported on Linux devices that were not created from a cloud-init or Ignition template.
 - `swap_disk_size` (Number) The size of the swap disk in GB. Required if `user_data` is empty.
 - `user_data` (String) User data to provide when launching the device. Updates to this field will force a new resource to be created.
 
