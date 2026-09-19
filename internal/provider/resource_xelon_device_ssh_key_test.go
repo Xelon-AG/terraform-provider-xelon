@@ -52,3 +52,42 @@ func TestResourceXelonDevice_Update_SSHKeyChangeDoesNotRequireReplacement(t *tes
 		})
 	}
 }
+
+func TestResourceXelonDevice_Schema_SSHKeyIDs(t *testing.T) {
+	deviceSchema := testDeviceResourceSchema(t)
+
+	sshKeyIDs, ok := deviceSchema.Attributes["ssh_key_ids"].(schema.SetAttribute)
+	require.True(t, ok)
+	assert.True(t, sshKeyIDs.Optional)
+	assert.True(t, sshKeyIDs.Computed)
+	assert.Equal(t, types.StringType, sshKeyIDs.ElementType)
+
+	sshKeyID, ok := deviceSchema.Attributes["ssh_key_id"].(schema.StringAttribute)
+	require.True(t, ok)
+	assert.NotEmpty(t, sshKeyID.DeprecationMessage)
+	require.Len(t, sshKeyID.Validators, 1)
+	assert.Contains(t, sshKeyID.Validators[0].Description(context.Background()), "ssh_key_ids")
+}
+
+func TestResourceXelonDevice_SSHKeyChanges(t *testing.T) {
+	tests := map[string]struct {
+		current, desired []string
+		toAdd, toRemove  []string
+	}{
+		"unchanged":        {current: []string{"a", "b"}, desired: []string{"b", "a"}},
+		"key added":        {current: []string{"a"}, desired: []string{"a", "b"}, toAdd: []string{"b"}},
+		"key removed":      {current: []string{"a", "b"}, desired: []string{"a"}, toRemove: []string{"b"}},
+		"key swapped":      {current: []string{"a"}, desired: []string{"b"}, toAdd: []string{"b"}, toRemove: []string{"a"}},
+		"all keys removed": {current: []string{"a", "b"}, desired: nil, toRemove: []string{"a", "b"}},
+		"first keys added": {current: nil, desired: []string{"a", "b"}, toAdd: []string{"a", "b"}},
+	}
+
+	for name, test := range tests {
+		t.Run(name, func(t *testing.T) {
+			toAdd, toRemove := sshKeyChanges(test.current, test.desired)
+
+			assert.Equal(t, test.toAdd, toAdd)
+			assert.Equal(t, test.toRemove, toRemove)
+		})
+	}
+}

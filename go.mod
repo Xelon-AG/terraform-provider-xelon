@@ -4,7 +4,7 @@ go 1.26
 
 require (
 	github.com/Masterminds/semver/v3 v3.5.0
-	github.com/Xelon-AG/xelon-sdk-go v1.15.1-0.20260919130140-81214de9b500
+	github.com/Xelon-AG/xelon-sdk-go v1.15.1-0.20260919132300-7b37ca2caad5
 	github.com/hashicorp/terraform-plugin-framework v1.19.0
 	github.com/hashicorp/terraform-plugin-framework-timeouts v0.7.0
 	github.com/hashicorp/terraform-plugin-framework-validators v0.19.0
