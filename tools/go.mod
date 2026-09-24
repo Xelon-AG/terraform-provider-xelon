@@ -1,6 +1,6 @@
 module github.com/Xelon-AG/terraform-provider-xelon/tools
 
-go 1.26.0
+go 1.27
 
 require (
 	github.com/git-chglog/git-chglog v0.15.4
