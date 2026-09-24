@@ -5,6 +5,8 @@ import (
 	"net/netip"
 	"testing"
 
+	"github.com/hashicorp/terraform-plugin-framework-timeouts/resource/timeouts"
+	"github.com/hashicorp/terraform-plugin-framework/attr"
 	"github.com/hashicorp/terraform-plugin-framework/diag"
 	"github.com/hashicorp/terraform-plugin-framework/path"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
@@ -295,7 +297,7 @@ func TestResourceXelonDevice_Model_FromAPI_PreservesCreateTimeOnlyFields(t *test
 
 	actual.fromAPI(ctx, device, []xelon.DeviceNetwork{
 		testDeviceNetworkInfo("network-id", true, "10.0.0.25"),
-	})
+	}, []xelon.SSHKey{{ID: "ssh-key-id"}})
 
 	assert.Equal(t, expected, actual)
 }
@@ -321,9 +323,57 @@ func TestResourceXelonDevice_Model_FromAPI_PopulatesComputedNetworkIPv4(t *testi
 
 	actual.fromAPI(context.Background(), device, []xelon.DeviceNetwork{
 		testDeviceNetworkInfo("network-id", true, "10.0.0.25"),
-	})
+	}, nil)
 
 	assert.Equal(t, expected, actual.Networks)
+}
+
+func TestResourceXelonDevice_Model_FromAPI_MapsManagedSSHKeyObservation(t *testing.T) {
+	testCases := map[string]struct {
+		trackedSSHKeyID types.String
+		observedSSHKeys []xelon.SSHKey
+		expected        types.String
+	}{
+		"tracked key observed": {
+			trackedSSHKeyID: types.StringValue("ssh-key-a"),
+			observedSSHKeys: []xelon.SSHKey{{ID: "ssh-key-a"}},
+			expected:        types.StringValue("ssh-key-a"),
+		},
+		"tracked key observed with unrelated key": {
+			trackedSSHKeyID: types.StringValue("ssh-key-a"),
+			observedSSHKeys: []xelon.SSHKey{{ID: "ssh-key-a"}, {ID: "ssh-key-b"}},
+			expected:        types.StringValue("ssh-key-a"),
+		},
+		"tracked key missing from observed keys": {
+			trackedSSHKeyID: types.StringValue("ssh-key-a"),
+			observedSSHKeys: []xelon.SSHKey{{ID: "ssh-key-b"}},
+			expected:        types.StringNull(),
+		},
+		"tracked key missing from observed empty collection": {
+			trackedSSHKeyID: types.StringValue("ssh-key-a"),
+			observedSSHKeys: []xelon.SSHKey{},
+			expected:        types.StringNull(),
+		},
+		"untracked key is not adopted": {
+			trackedSSHKeyID: types.StringNull(),
+			observedSSHKeys: []xelon.SSHKey{{ID: "ssh-key-a"}},
+			expected:        types.StringNull(),
+		},
+	}
+
+	for name, testCase := range testCases {
+		t.Run(name, func(t *testing.T) {
+			model := deviceResourceModel{
+				DiskSize:     types.Int64Value(10),
+				SSHKeyID:     testCase.trackedSSHKeyID,
+				SwapDiskSize: types.Int64Value(1),
+			}
+
+			model.fromAPI(context.Background(), &xelon.Device{}, nil, testCase.observedSSHKeys)
+
+			assert.True(t, testCase.expected.Equal(model.SSHKeyID))
+		})
+	}
 }
 
 func testDeviceResourceSchema(t *testing.T) schema.Schema {
@@ -375,7 +425,11 @@ func testDeviceResourcePlanWithTemplateID(t *testing.T, ctx context.Context, dev
 		SwapDiskSize: types.Int64Value(1),
 		TemplateID:   types.StringValue(templateID),
 		TenantID:     types.StringValue("tenant-id"),
-		UserData:     userData,
+		Timeouts: timeouts.Value{Object: types.ObjectNull(map[string]attr.Type{
+			"create": types.StringType,
+			"update": types.StringType,
+		})},
+		UserData: userData,
 	})
 	require.False(t, diags.HasError())
 

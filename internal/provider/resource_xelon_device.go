@@ -5,7 +5,9 @@ import (
 	"errors"
 	"net/http"
 	"slices"
+	"time"
 
+	"github.com/hashicorp/terraform-plugin-framework-timeouts/resource/timeouts"
 	"github.com/hashicorp/terraform-plugin-framework/path"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
@@ -25,6 +27,10 @@ var (
 	_ resource.ResourceWithConfigure   = (*deviceResource)(nil)
 	_ resource.ResourceWithImportState = (*deviceResource)(nil)
 	_ resource.ResourceWithModifyPlan  = (*deviceResource)(nil)
+)
+
+const (
+	defaultDeviceTimeout = 30 * time.Minute
 )
 
 // deviceResource is the device resource implementation.
@@ -54,6 +60,7 @@ type deviceResourceModel struct {
 	SwapDiskSize     types.Int64                  `tfsdk:"swap_disk_size"`
 	TemplateID       types.String                 `tfsdk:"template_id"`
 	TenantID         types.String                 `tfsdk:"tenant_id"`
+	Timeouts         timeouts.Value               `tfsdk:"timeouts"`
 	UserData         types.String                 `tfsdk:"user_data"`
 }
 
@@ -72,7 +79,7 @@ func (r *deviceResource) Metadata(_ context.Context, _ resource.MetadataRequest,
 	response.TypeName = "xelon_device"
 }
 
-func (r *deviceResource) Schema(_ context.Context, _ resource.SchemaRequest, response *resource.SchemaResponse) {
+func (r *deviceResource) Schema(ctx context.Context, _ resource.SchemaRequest, response *resource.SchemaResponse) {
 	response.Schema = schema.Schema{
 		MarkdownDescription: `
 The device resource allows you to manage Xelon devices.
@@ -204,8 +211,9 @@ Devices are the virtual machines that run your applications.
 				},
 			},
 			"ssh_key_id": schema.StringAttribute{
-				MarkdownDescription: "The ID of the SSH key to be used for authentication.",
-				Optional:            true,
+				MarkdownDescription: "The ID of the SSH key assigned to the device. Additional SSH keys may be assigned using the SSH key resource. " +
+					"Changing or removing this value updates only this assignment without replacing the device.",
+				Optional: true,
 				PlanModifiers: []planmodifier.String{
 					stringplanmodifier.UseStateForUnknown(),
 				},
@@ -236,6 +244,12 @@ Devices are the virtual machines that run your applications.
 				MarkdownDescription: "The tenant ID to whom the device belongs.",
 				Required:            true,
 			},
+			"timeouts": timeouts.Attributes(ctx, timeouts.Opts{
+				Create:            true,
+				CreateDescription: "Defaults to 30m.",
+				Update:            true,
+				UpdateDescription: "Defaults to 30m.",
+			}),
 			"user_data": schema.StringAttribute{
 				MarkdownDescription: "User data to provide when launching the device. Updates to this field will force a new resource to be created.",
 				Optional:            true,
@@ -274,6 +288,15 @@ func (r *deviceResource) Create(ctx context.Context, request resource.CreateRequ
 		return
 	}
 
+	// configure timeout
+	createTimeout, diags := data.Timeouts.Create(ctx, defaultDeviceTimeout)
+	response.Diagnostics.Append(diags...)
+	if response.Diagnostics.HasError() {
+		return
+	}
+	ctx, cancel := context.WithTimeout(ctx, createTimeout)
+	defer cancel()
+
 	var networks []xelon.DeviceCreateNetwork
 	for _, network := range data.Networks {
 		n := xelon.DeviceCreateNetwork{
@@ -301,6 +324,9 @@ func (r *deviceResource) Create(ctx context.Context, request resource.CreateRequ
 		TemplateID:           data.TemplateID.ValueString(),
 		TenantID:             data.TenantID.ValueString(),
 	}
+	if !data.SSHKeyID.IsNull() {
+		createRequest.SSHKeyIDs = []string{data.SSHKeyID.ValueString()}
+	}
 	if data.UserData.ValueString() != "" {
 		createRequest.CloudInit = &xelon.DeviceCloudInit{
 			UserData: data.UserData.ValueString(),
@@ -315,6 +341,7 @@ func (r *deviceResource) Create(ctx context.Context, request resource.CreateRequ
 	tflog.Debug(ctx, "creating device", map[string]any{
 		"display_name": data.DisplayName.ValueString(),
 		"hostname":     data.Hostname.ValueString(),
+		"ssh_key_id":   data.SSHKeyID.ValueString(),
 		"template_id":  data.TemplateID.ValueString(),
 		"tenant_id":    data.TenantID.ValueString(),
 	})
@@ -330,6 +357,8 @@ func (r *deviceResource) Create(ctx context.Context, request resource.CreateRequ
 	tflog.Info(ctx, "waiting for device to be powered on", map[string]any{"device_id": deviceID})
 	err = helper.WaitDevicePowerStateOn(ctx, r.client, deviceID)
 	if err != nil {
+		// set id to state that the resource will be marked as tainted
+		response.Diagnostics.Append(response.State.SetAttribute(ctx, path.Root("id"), deviceID)...)
 		response.Diagnostics.AddError("Unable to wait for device to be powered on", err.Error())
 		return
 	}
@@ -338,13 +367,30 @@ func (r *deviceResource) Create(ctx context.Context, request resource.CreateRequ
 	tflog.Info(ctx, "waiting for device to be ready", map[string]any{"device_id": deviceID})
 	err = helper.WaitDeviceStateReady(ctx, r.client, deviceID)
 	if err != nil {
+		// set id to state that the resource will be marked as tainted
+		response.Diagnostics.Append(response.State.SetAttribute(ctx, path.Root("id"), deviceID)...)
 		response.Diagnostics.AddError("Unable to wait for device to be ready", err.Error())
 		return
 	}
 	tflog.Info(ctx, "device is ready", map[string]any{"device_id": deviceID})
 
+	if !data.SSHKeyID.IsNull() {
+		sshKeyID := data.SSHKeyID.ValueString()
+		tflog.Info(ctx, "waiting for device SSH key to be assigned", map[string]any{"device_id": deviceID, "ssh_key_id": sshKeyID})
+		err = helper.WaitDeviceSSHKeyAssigned(ctx, r.client, deviceID, sshKeyID, createTimeout)
+		if err != nil {
+			// set id to state that the resource will be marked as tainted
+			response.Diagnostics.Append(response.State.SetAttribute(ctx, path.Root("id"), deviceID)...)
+			response.Diagnostics.AddError("Unable to wait for device SSH key to be assigned", err.Error())
+			return
+		}
+		tflog.Info(ctx, "device SSH key is assigned", map[string]any{"device_id": deviceID, "ssh_key_id": sshKeyID})
+	}
+
 	_, err = r.refreshDeviceState(ctx, &data, deviceID)
 	if err != nil {
+		// set id to state that the resource will be marked as tainted
+		response.Diagnostics.Append(response.State.SetAttribute(ctx, path.Root("id"), deviceID)...)
 		response.Diagnostics.AddError("Unable to refresh device state", err.Error())
 		return
 	}
@@ -389,7 +435,23 @@ func (r *deviceResource) Update(ctx context.Context, request resource.UpdateRequ
 		return
 	}
 
+	// configure timeout
+	updateTimeout, diags := plan.Timeouts.Update(ctx, defaultDeviceTimeout)
+	response.Diagnostics.Append(diags...)
+	if response.Diagnostics.HasError() {
+		return
+	}
+	ctx, cancel := context.WithTimeout(ctx, updateTimeout)
+	defer cancel()
+
 	deviceID := state.ID.ValueString()
+
+	if !plan.SSHKeyID.Equal(state.SSHKeyID) {
+		if err := r.transitionDeviceSSHKey(ctx, deviceID, state.SSHKeyID, plan.SSHKeyID, updateTimeout); err != nil {
+			response.Diagnostics.AddError("Unable to update device SSH key assignment", err.Error())
+			return
+		}
+	}
 
 	if !plan.DisplayName.Equal(state.DisplayName) {
 		updateRequest := &xelon.DeviceUpdateRequest{
@@ -550,7 +612,7 @@ func (r *deviceResource) Update(ctx context.Context, request resource.UpdateRequ
 		return
 	}
 
-	diags := response.State.Set(ctx, &plan)
+	diags = response.State.Set(ctx, &plan)
 	response.Diagnostics.Append(diags...)
 }
 
@@ -654,7 +716,60 @@ func (r *deviceResource) ModifyPlan(ctx context.Context, request resource.Modify
 	}
 }
 
-func (m *deviceResourceModel) fromAPI(ctx context.Context, device *xelon.Device, deviceNetworks []xelon.DeviceNetwork) {
+func (r *deviceResource) transitionDeviceSSHKey(ctx context.Context, deviceID string, current, desired types.String, timeout time.Duration) error {
+	if !desired.IsNull() {
+		desiredSSHKeyID := desired.ValueString()
+
+		tflog.Trace(ctx, "listing device SSH keys via API (pre-add lookup)", map[string]any{"device_id": deviceID, "ssh_key_id": desiredSSHKeyID})
+		sshKeys, _, err := r.client.Devices.ListSSHKeys(ctx, deviceID)
+		if err != nil {
+			return err
+		}
+
+		if !slices.ContainsFunc(sshKeys, func(sshKey xelon.SSHKey) bool { return sshKey.ID == desiredSSHKeyID }) {
+			tflog.Debug(ctx, "adding device SSH key", map[string]any{"device_id": deviceID, "ssh_key_id": desiredSSHKeyID})
+
+			tflog.Trace(ctx, "adding device SSH key via API", map[string]any{"device_id": deviceID, "ssh_key_id": desiredSSHKeyID})
+			_, err = r.client.Devices.AddSSHKey(ctx, deviceID, desiredSSHKeyID)
+			if err != nil {
+				return err
+			}
+
+			tflog.Debug(ctx, "added device SSH key", map[string]any{"device_id": deviceID, "ssh_key_id": desiredSSHKeyID})
+
+			tflog.Info(ctx, "waiting for device SSH key to be assigned", map[string]any{"device_id": deviceID, "ssh_key_id": desiredSSHKeyID})
+			if err := helper.WaitDeviceSSHKeyAssigned(ctx, r.client, deviceID, desiredSSHKeyID, timeout); err != nil {
+				return err
+			}
+			tflog.Info(ctx, "device SSH key is assigned", map[string]any{"device_id": deviceID, "ssh_key_id": desiredSSHKeyID})
+		}
+	}
+
+	if current.IsNull() {
+		return nil
+	}
+
+	currentSSHKeyID := current.ValueString()
+	tflog.Debug(ctx, "removing device SSH key", map[string]any{"device_id": deviceID, "ssh_key_id": currentSSHKeyID})
+
+	tflog.Trace(ctx, "removing device SSH key via API", map[string]any{"device_id": deviceID, "ssh_key_id": currentSSHKeyID})
+	resp, err := r.client.Devices.RemoveSSHKey(ctx, deviceID, currentSSHKeyID)
+	if err != nil && (resp == nil || resp.StatusCode != http.StatusNotFound) {
+		return err
+	}
+
+	tflog.Debug(ctx, "removed device SSH key", map[string]any{"device_id": deviceID, "ssh_key_id": currentSSHKeyID})
+
+	tflog.Info(ctx, "waiting for device SSH key to be unassigned", map[string]any{"device_id": deviceID, "ssh_key_id": currentSSHKeyID})
+	if err := helper.WaitDeviceSSHKeyUnassigned(ctx, r.client, deviceID, currentSSHKeyID, timeout); err != nil {
+		return err
+	}
+	tflog.Info(ctx, "device SSH key is unassigned", map[string]any{"device_id": deviceID, "ssh_key_id": currentSSHKeyID})
+
+	return nil
+}
+
+func (m *deviceResourceModel) fromAPI(ctx context.Context, device *xelon.Device, deviceNetworks []xelon.DeviceNetwork, deviceSSHKeys []xelon.SSHKey) {
 	primaryDisk := findDiskIDBySize(ctx, int(m.DiskSize.ValueInt64()), device.Storages)
 	swapDisk := findDiskIDBySize(ctx, int(m.SwapDiskSize.ValueInt64()), device.Storages)
 
@@ -673,6 +788,12 @@ func (m *deviceResourceModel) fromAPI(ctx context.Context, device *xelon.Device,
 	m.Memory = types.Int64Value(int64(device.RAM))
 	m.MemoryHotPlug = types.BoolValue(device.RAMHotAddEnabled)
 	m.Networks = populateDeviceNetworkIPv4Addresses(m.Networks, deviceNetworks)
+	if !m.SSHKeyID.IsNull() && !m.SSHKeyID.IsUnknown() {
+		managedSSHKeyID := m.SSHKeyID.ValueString()
+		if !slices.ContainsFunc(deviceSSHKeys, func(sshKey xelon.SSHKey) bool { return sshKey.ID == managedSSHKeyID }) {
+			m.SSHKeyID = types.StringNull()
+		}
+	}
 }
 
 func (r *deviceResource) refreshDeviceState(ctx context.Context, model *deviceResourceModel, deviceID string) (*xelon.Response, error) {
@@ -698,7 +819,24 @@ func (r *deviceResource) refreshDeviceState(ctx context.Context, model *deviceRe
 		"network_count": len(deviceNetworks),
 	})
 
-	model.fromAPI(ctx, device, deviceNetworks)
+	var deviceSSHKeys []xelon.SSHKey
+	if !model.SSHKeyID.IsNull() && !model.SSHKeyID.IsUnknown() {
+		tflog.Trace(ctx, "listing device SSH keys via API (state refresh)", map[string]any{
+			"device_id":  deviceID,
+			"ssh_key_id": model.SSHKeyID.ValueString(),
+		})
+		sshKeys, _, err := r.client.Devices.ListSSHKeys(ctx, deviceID)
+		if err != nil {
+			return nil, err
+		}
+		deviceSSHKeys = sshKeys
+		tflog.Trace(ctx, "received device SSH keys from API", map[string]any{
+			"device_id":     deviceID,
+			"ssh_key_count": len(deviceSSHKeys),
+		})
+	}
+
+	model.fromAPI(ctx, device, deviceNetworks, deviceSSHKeys)
 
 	return nil, nil
 }

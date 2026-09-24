@@ -59,8 +59,9 @@ resource "xelon_device" "server" {
 - `password` (String, Sensitive) The password for the device root or administrator user. Required if `user_data` is empty.
 - `script_id` (String) The ID of the script to be executed during the device setup.
 - `send_email` (Boolean) Whether to send an email notification upon successful device creation.
-- `ssh_key_id` (String) The ID of the SSH key to be used for authentication.
+- `ssh_key_id` (String) The ID of the SSH key assigned to the device. Additional SSH keys may be assigned using the SSH key resource. Changing or removing this value updates only this assignment without replacing the device.
 - `swap_disk_size` (Number) The size of the swap disk in GB. Required if `user_data` is empty.
+- `timeouts` (Attributes) (see [below for nested schema](#nestedatt--timeouts))
 - `user_data` (String) User data to provide when launching the device. Updates to this field will force a new resource to be created.
 
 ### Read-Only
@@ -81,3 +82,12 @@ Optional:
 - `connected` (Boolean) Whether the network should automatically connect when the device powers on.
 - `ipv4_address` (String) The IPv4 address assigned to the device on this network. Specify a value for a static address; when omitted, Xelon assigns one automatically.
 - `ipv4_address_id` (String) The ID of the static IP address for the network connection.
+
+
+<a id="nestedatt--timeouts"></a>
+### Nested Schema for `timeouts`
+
+Optional:
+
+- `create` (String) Defaults to 30m.
+- `update` (String) Defaults to 30m.
