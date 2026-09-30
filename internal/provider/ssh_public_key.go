@@ -27,7 +27,7 @@ type sshPublicKeyType struct {
 
 func (t sshPublicKeyType) String() string { return "xelon.sshPublicKeyType" }
 
-func (t sshPublicKeyType) ValueType(_ context.Context) attr.Value { return &sshPublicKey{} }
+func (t sshPublicKeyType) ValueType(_ context.Context) attr.Value { return sshPublicKey{} }
 
 func (t sshPublicKeyType) Equal(o attr.Type) bool {
 	other, ok := o.(sshPublicKeyType)
