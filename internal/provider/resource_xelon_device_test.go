@@ -370,6 +370,7 @@ func testDeviceResourcePlanWithTemplateID(t *testing.T, ctx context.Context, dev
 		Password:     password,
 		SendEmail:    types.BoolNull(),
 		SSHKeyID:     types.StringNull(),
+		SSHKeyIDs:    types.SetNull(types.StringType),
 		ScriptID:     types.StringNull(),
 		SwapDiskID:   types.StringUnknown(),
 		SwapDiskSize: types.Int64Value(1),
