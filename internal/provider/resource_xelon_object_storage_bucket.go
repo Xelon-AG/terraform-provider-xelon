@@ -5,7 +5,9 @@ import (
 	"errors"
 	"net/http"
 	"strings"
+	"time"
 
+	"github.com/hashicorp/terraform-plugin-framework-timeouts/resource/timeouts"
 	"github.com/hashicorp/terraform-plugin-framework-validators/int64validator"
 	"github.com/hashicorp/terraform-plugin-framework-validators/stringvalidator"
 	"github.com/hashicorp/terraform-plugin-framework/diag"
@@ -36,6 +38,7 @@ var (
 const (
 	objectStorageBucketObjectLockRetentionDaysMinimum int64 = 1
 	objectStorageBucketObjectLockRetentionDaysMaximum int64 = 36500
+	defaultObjectStorageBucketTimeout                       = 30 * time.Minute
 )
 
 // objectStorageBucketResource is the object storage bucket resource implementation.
@@ -45,16 +48,17 @@ type objectStorageBucketResource struct {
 
 // objectStorageBucketResourceModel maps the object storage bucket resource schema data.
 type objectStorageBucketResourceModel struct {
-	CreatedAt                types.String `tfsdk:"created_at"`
-	ID                       types.String `tfsdk:"id"`
-	Name                     types.String `tfsdk:"name"`
-	ObjectLockEnabled        types.Bool   `tfsdk:"object_lock_enabled"`
-	ObjectLockRetentionDays  types.Int64  `tfsdk:"object_lock_retention_days"`
-	ObjectStorageUserID      types.String `tfsdk:"user_id"`
-	RegionReplicationEnabled types.Bool   `tfsdk:"region_replication_enabled"`
-	S3Endpoints              types.Set    `tfsdk:"s3_endpoints"` // []types.String
-	TenantID                 types.String `tfsdk:"tenant_id"`
-	VersioningEnabled        types.Bool   `tfsdk:"versioning_enabled"`
+	CreatedAt                types.String   `tfsdk:"created_at"`
+	ID                       types.String   `tfsdk:"id"`
+	Name                     types.String   `tfsdk:"name"`
+	ObjectLockEnabled        types.Bool     `tfsdk:"object_lock_enabled"`
+	ObjectLockRetentionDays  types.Int64    `tfsdk:"object_lock_retention_days"`
+	ObjectStorageUserID      types.String   `tfsdk:"user_id"`
+	RegionReplicationEnabled types.Bool     `tfsdk:"region_replication_enabled"`
+	S3Endpoints              types.Set      `tfsdk:"s3_endpoints"` // []types.String
+	TenantID                 types.String   `tfsdk:"tenant_id"`
+	Timeouts                 timeouts.Value `tfsdk:"timeouts"`
+	VersioningEnabled        types.Bool     `tfsdk:"versioning_enabled"`
 }
 
 func NewObjectStorageBucketResource() resource.Resource {
@@ -65,7 +69,7 @@ func (r *objectStorageBucketResource) Metadata(_ context.Context, _ resource.Met
 	response.TypeName = "xelon_object_storage_bucket"
 }
 
-func (r *objectStorageBucketResource) Schema(_ context.Context, _ resource.SchemaRequest, response *resource.SchemaResponse) {
+func (r *objectStorageBucketResource) Schema(ctx context.Context, _ resource.SchemaRequest, response *resource.SchemaResponse) {
 	response.Schema = schema.Schema{
 		MarkdownDescription: `
 The object storage bucket resource allows you to manage an S3-compatible bucket in Xelon Object Storage.
@@ -141,6 +145,12 @@ Object Lock is optional and defaults to disabled. Object Lock can only be enable
 					stringplanmodifier.UseStateForUnknown(),
 				},
 			},
+			"timeouts": timeouts.Attributes(ctx, timeouts.Opts{
+				Create:            true,
+				CreateDescription: "Defaults to 30m.",
+				Update:            true,
+				UpdateDescription: "Defaults to 30m.",
+			}),
 			"user_id": schema.StringAttribute{
 				MarkdownDescription: "The ID of the object storage user that owns the bucket.",
 				Required:            true,
@@ -187,6 +197,15 @@ func (r *objectStorageBucketResource) Create(ctx context.Context, request resour
 		return
 	}
 
+	// configure timeout
+	createTimeout, diags := data.Timeouts.Create(ctx, defaultObjectStorageBucketTimeout)
+	response.Diagnostics.Append(diags...)
+	if response.Diagnostics.HasError() {
+		return
+	}
+	ctx, cancel := context.WithTimeout(ctx, createTimeout)
+	defer cancel()
+
 	if !data.ObjectLockEnabled.IsNull() &&
 		!data.ObjectLockEnabled.IsUnknown() &&
 		data.ObjectLockEnabled.ValueBool() {
@@ -222,6 +241,7 @@ func (r *objectStorageBucketResource) Create(ctx context.Context, request resour
 
 	userID := data.ObjectStorageUserID.ValueString()
 	bucketName := data.Name.ValueString()
+	versioningEnabled := data.VersioningEnabled.ValueBool()
 
 	objectLockRetentionDays := 0
 	if !data.ObjectLockRetentionDays.IsNull() &&
@@ -234,7 +254,7 @@ func (r *objectStorageBucketResource) Create(ctx context.Context, request resour
 		ObjectLockEnabled:       data.ObjectLockEnabled.ValueBool(),
 		ObjectLockRetentionDays: objectLockRetentionDays,
 		ObjectStorageUserID:     userID,
-		VersioningEnabled:       data.VersioningEnabled.ValueBool(),
+		VersioningEnabled:       versioningEnabled,
 	}
 
 	tflog.Debug(ctx, "creating object storage bucket", map[string]any{
@@ -259,6 +279,42 @@ func (r *objectStorageBucketResource) Create(ctx context.Context, request resour
 		"name":    createdBucket.Name,
 		"user_id": userID,
 	})
+
+	if versioningEnabled {
+		tflog.Info(ctx, "waiting for object storage bucket versioning to be enabled", map[string]any{
+			"name":    bucketName,
+			"user_id": userID,
+		})
+		err = helper.WaitObjectStorageBucketVersioningEnabled(ctx, r.client, bucketName, userID, createTimeout)
+		if err != nil {
+			response.Diagnostics.Append(response.State.SetAttribute(ctx, path.Root("name"), bucketName)...)
+			response.Diagnostics.Append(response.State.SetAttribute(ctx, path.Root("user_id"), userID)...)
+			response.Diagnostics.AddError("Unable to wait for object storage bucket versioning", err.Error())
+			return
+		}
+		tflog.Info(ctx, "object storage bucket versioning is enabled", map[string]any{
+			"name":    bucketName,
+			"user_id": userID,
+		})
+
+		tflog.Debug(ctx, "refreshing object storage bucket state after create", map[string]any{
+			"name":    bucketName,
+			"user_id": userID,
+		})
+
+		tflog.Trace(ctx, "reading object storage bucket via API (state refresh)", map[string]any{
+			"name":    bucketName,
+			"user_id": userID,
+		})
+		createdBucket, _, err = r.client.ObjectStorages.GetBucket(ctx, bucketName, userID)
+		if err != nil {
+			response.Diagnostics.Append(response.State.SetAttribute(ctx, path.Root("name"), bucketName)...)
+			response.Diagnostics.Append(response.State.SetAttribute(ctx, path.Root("user_id"), userID)...)
+			response.Diagnostics.AddError("Unable to read object storage bucket", err.Error())
+			return
+		}
+		tflog.Trace(ctx, "received object storage bucket from API", map[string]any{"data": createdBucket})
+	}
 
 	response.Diagnostics.Append(data.fromAPI(ctx, createdBucket, userID)...)
 	if response.Diagnostics.HasError() {
@@ -330,10 +386,20 @@ func (r *objectStorageBucketResource) Update(ctx context.Context, request resour
 		return
 	}
 
+	// configure timeout
+	updateTimeout, diags := plan.Timeouts.Update(ctx, defaultObjectStorageBucketTimeout)
+	response.Diagnostics.Append(diags...)
+	if response.Diagnostics.HasError() {
+		return
+	}
+	ctx, cancel := context.WithTimeout(ctx, updateTimeout)
+	defer cancel()
+
 	userID := plan.ObjectStorageUserID.ValueString()
 	bucketID := state.ID.ValueString()
 	bucketName := state.Name.ValueString()
-	versioningChanged := state.VersioningEnabled.ValueBool() != plan.VersioningEnabled.ValueBool()
+	versioningChanged := !state.VersioningEnabled.Equal(plan.VersioningEnabled)
+	versioningEnabled := plan.VersioningEnabled.ValueBool()
 
 	tflog.Debug(ctx, "updating object storage bucket", map[string]any{
 		"id":      bucketID,
@@ -359,6 +425,30 @@ func (r *objectStorageBucketResource) Update(ctx context.Context, request resour
 			"name":               bucketName,
 			"user_id":            userID,
 			"versioning_enabled": plan.VersioningEnabled.ValueBool(),
+		})
+
+		if versioningEnabled {
+			tflog.Info(ctx, "waiting for object storage bucket versioning to be enabled", map[string]any{
+				"name":    bucketName,
+				"user_id": userID,
+			})
+			err = helper.WaitObjectStorageBucketVersioningEnabled(ctx, r.client, bucketName, userID, updateTimeout)
+		} else {
+			tflog.Info(ctx, "waiting for object storage bucket versioning to be disabled", map[string]any{
+				"name":    bucketName,
+				"user_id": userID,
+			})
+			err = helper.WaitObjectStorageBucketVersioningDisabled(ctx, r.client, bucketName, userID, updateTimeout)
+		}
+		if err != nil {
+			response.Diagnostics.AddError("Unable to wait for object storage bucket versioning", err.Error())
+			return
+		}
+
+		tflog.Info(ctx, "object storage bucket versioning reached requested state", map[string]any{
+			"name":               bucketName,
+			"user_id":            userID,
+			"versioning_enabled": versioningEnabled,
 		})
 	}
 
