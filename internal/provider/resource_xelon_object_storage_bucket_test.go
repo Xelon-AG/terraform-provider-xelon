@@ -4,6 +4,8 @@ import (
 	"context"
 	"testing"
 
+	"github.com/hashicorp/terraform-plugin-framework-timeouts/resource/timeouts"
+	"github.com/hashicorp/terraform-plugin-framework/attr"
 	"github.com/hashicorp/terraform-plugin-framework/diag"
 	"github.com/hashicorp/terraform-plugin-framework/path"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
@@ -559,6 +561,10 @@ func testObjectStorageBucketModel(objectLockEnabled types.Bool, objectLockRetent
 		RegionReplicationEnabled: types.BoolValue(true),
 		S3Endpoints:              types.SetNull(types.StringType),
 		TenantID:                 types.StringValue("tenant-id"),
-		VersioningEnabled:        versioningEnabled,
+		Timeouts: timeouts.Value{Object: types.ObjectNull(map[string]attr.Type{
+			"create": types.StringType,
+			"update": types.StringType,
+		})},
+		VersioningEnabled: versioningEnabled,
 	}
 }

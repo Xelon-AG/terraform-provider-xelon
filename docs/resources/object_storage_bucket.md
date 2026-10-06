@@ -87,6 +87,7 @@ resource "xelon_object_storage_bucket" "example_locked" {
 
 - `object_lock_enabled` (Boolean) Whether Object Lock is enabled for the bucket. Object Lock requires versioning, can only be enabled when the bucket is created, and cannot be disabled. Changing this value requires replacing the bucket.
 - `object_lock_retention_days` (Number) The default Object Lock retention period, in days, applied to new object versions. This value is required when creating a bucket with Object Lock enabled and cannot be configured when Object Lock is disabled. Historical Object-Locked buckets created without default retention remain supported. Changing this value requires replacing the bucket.
+- `timeouts` (Attributes) (see [below for nested schema](#nestedatt--timeouts))
 - `versioning_enabled` (Boolean) Whether bucket versioning is enabled.
 
 ### Read-Only
@@ -96,6 +97,14 @@ resource "xelon_object_storage_bucket" "example_locked" {
 - `region_replication_enabled` (Boolean) Whether replication is enabled for the bucket's Object Storage region.
 - `s3_endpoints` (Set of String) S3-compatible endpoint URLs for the bucket's region.
 - `tenant_id` (String) The ID of the tenant that owns the bucket.
+
+<a id="nestedatt--timeouts"></a>
+### Nested Schema for `timeouts`
+
+Optional:
+
+- `create` (String) Defaults to 30m.
+- `update` (String) Defaults to 30m.
 
 ## Import
 
