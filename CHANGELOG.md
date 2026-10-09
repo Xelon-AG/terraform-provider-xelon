@@ -1,5 +1,21 @@
 
-## v1.10.0 (2026-08-15)
+## v1.10.1 (2026-10-06)
+### Bug Fixes
+* **resource/xelon_device**: manage ssh key assignment in place
+* **resource/xelon_object_storage_bucket**: wait for versioning to be enabled
+* **resource/xelon_ssh_key**: return value instead of pointer for valueType
+* **resource/xelon_ssh_key**: use custom type for public key
+### Maintaining
+* bump go to 1.27
+* **deps**: upgrade xelon-sdk-go to v1.15.2
+* **deps**: bump github.com/golangci/golangci-lint/v2 in /tools
+* **deps**: upgrade xelon-sdk-go to v1.15.1
+* **deps**: bump github.com/golangci/golangci-lint/v2 in /tools
+* **deps**: bump github.com/golangci/golangci-lint/v2 in /tools
+* **deps**: bump github.com/stretchr/testify from 1.12.0 to 1.12.1
+* **deps**: bump github.com/stretchr/testify from 1.11.1 to 1.12.0
+
+## v1.10.0 (2026-08-16)
 ### Features
 * **datasource/xelon_backup_plan**: add backup plan lookup
 * **resource/xelon_device_backup**: add resource to manage backup plan assignments
