@@ -48,6 +48,165 @@ func TestResourceXelonDevice_Schema_NetworkIPv4Address(t *testing.T) {
 	assert.Empty(t, ipv4Address.PlanModifiers)
 }
 
+func TestResourceXelonDevice_Schema_ScriptIDDoesNotRequireReplacement(t *testing.T) {
+	ctx := context.Background()
+	deviceSchema := testDeviceResourceSchema(t)
+	scriptID, ok := deviceSchema.Attributes["script_id"].(schema.StringAttribute)
+	require.True(t, ok)
+	assert.True(t, scriptID.Optional)
+	assert.False(t, scriptID.Computed)
+
+	testCases := map[string]struct {
+		state types.String
+		plan  types.String
+	}{
+		"add":    {state: types.StringNull(), plan: types.StringValue("script-a")},
+		"change": {state: types.StringValue("script-a"), plan: types.StringValue("script-b")},
+		"remove": {state: types.StringValue("script-a"), plan: types.StringNull()},
+	}
+
+	for name, testCase := range testCases {
+		t.Run(name, func(t *testing.T) {
+			plan := testDeviceResourcePlan(t, ctx, deviceSchema, types.StringNull(), types.StringValue("user-data"))
+			require.False(t, plan.SetAttribute(ctx, path.Root("script_id"), testCase.plan).HasError())
+			statePlan := testDeviceResourcePlan(t, ctx, deviceSchema, types.StringNull(), types.StringValue("user-data"))
+			require.False(t, statePlan.SetAttribute(ctx, path.Root("script_id"), testCase.state).HasError())
+
+			for _, modifier := range scriptID.PlanModifiers {
+				response := &planmodifier.StringResponse{PlanValue: testCase.plan}
+				modifier.PlanModifyString(ctx, planmodifier.StringRequest{
+					ConfigValue: testCase.plan,
+					Plan:        plan,
+					PlanValue:   testCase.plan,
+					State:       tfsdk.State{Schema: deviceSchema, Raw: statePlan.Raw},
+					StateValue:  testCase.state,
+				}, response)
+
+				require.False(t, response.Diagnostics.HasError())
+				assert.False(t, response.RequiresReplace)
+				assert.Equal(t, testCase.plan, response.PlanValue)
+			}
+		})
+	}
+}
+
+func TestResourceXelonDevice_ModifyPlan_ScriptIDLifecycle(t *testing.T) {
+	testCases := map[string]struct {
+		stateScriptID    types.String
+		planScriptID     types.String
+		stateIsNull      bool
+		planIsNull       bool
+		changedAttribute string
+		changedValue     types.String
+		expectError      bool
+	}{
+		"allows initial creation with script": {
+			stateIsNull:  true,
+			planScriptID: types.StringValue("script-a"),
+		},
+		"allows unchanged null": {
+			stateScriptID: types.StringNull(),
+			planScriptID:  types.StringNull(),
+		},
+		"allows unchanged script": {
+			stateScriptID: types.StringValue("script-a"),
+			planScriptID:  types.StringValue("script-a"),
+		},
+		"blocks adding a script to an existing or imported device": {
+			stateScriptID: types.StringNull(),
+			planScriptID:  types.StringValue("script-a"),
+			expectError:   true,
+		},
+		"blocks changing a script": {
+			stateScriptID: types.StringValue("script-a"),
+			planScriptID:  types.StringValue("script-b"),
+			expectError:   true,
+		},
+		"blocks removing a script": {
+			stateScriptID: types.StringValue("script-a"),
+			planScriptID:  types.StringNull(),
+			expectError:   true,
+		},
+		"allows destroy": {
+			stateScriptID: types.StringValue("script-a"),
+			planIsNull:    true,
+		},
+		"defers unknown script": {
+			stateScriptID: types.StringValue("script-a"),
+			planScriptID:  types.StringUnknown(),
+		},
+		"allows new script for template replacement": {
+			stateScriptID:    types.StringValue("script-a"),
+			planScriptID:     types.StringValue("script-b"),
+			changedAttribute: "template_id",
+			changedValue:     types.StringValue("new-template-id"),
+		},
+		"allows script removal for user data replacement": {
+			stateScriptID:    types.StringValue("script-a"),
+			planScriptID:     types.StringNull(),
+			changedAttribute: "user_data",
+			changedValue:     types.StringValue("new-user-data"),
+		},
+		"allows script addition for configured password replacement": {
+			stateScriptID:    types.StringNull(),
+			planScriptID:     types.StringValue("script-a"),
+			changedAttribute: "password",
+			changedValue:     types.StringValue("new-password"),
+		},
+		"password removal does not bypass script guard": {
+			stateScriptID:    types.StringValue("script-a"),
+			planScriptID:     types.StringValue("script-b"),
+			changedAttribute: "password",
+			changedValue:     types.StringNull(),
+			expectError:      true,
+		},
+	}
+
+	for name, testCase := range testCases {
+		t.Run(name, func(t *testing.T) {
+			ctx := context.Background()
+			deviceSchema := testDeviceResourceSchema(t)
+			statePlan := testDeviceResourcePlan(t, ctx, deviceSchema, types.StringValue("password"), types.StringValue("user-data"))
+			require.False(t, statePlan.SetAttribute(ctx, path.Root("id"), types.StringValue("device-id")).HasError())
+			require.False(t, statePlan.SetAttribute(ctx, path.Root("script_id"), testCase.stateScriptID).HasError())
+			state := tfsdk.State{Schema: deviceSchema, Raw: statePlan.Raw}
+			if testCase.stateIsNull {
+				state.Raw = tftypes.NewValue(deviceSchema.Type().TerraformType(ctx), nil)
+			}
+
+			plan := tfsdk.Plan{Schema: deviceSchema, Raw: statePlan.Raw.Copy()}
+			require.False(t, plan.SetAttribute(ctx, path.Root("script_id"), testCase.planScriptID).HasError())
+			if testCase.changedAttribute != "" {
+				require.False(t, plan.SetAttribute(ctx, path.Root(testCase.changedAttribute), testCase.changedValue).HasError())
+			}
+			if testCase.planIsNull {
+				plan.Raw = tftypes.NewValue(deviceSchema.Type().TerraformType(ctx), nil)
+			}
+
+			response := &resource.ModifyPlanResponse{Plan: plan}
+			NewDeviceResource().(*deviceResource).ModifyPlan(ctx, resource.ModifyPlanRequest{
+				Plan:  plan,
+				State: state,
+			}, response)
+
+			assert.Empty(t, response.RequiresReplace)
+			assert.True(t, plan.Raw.Equal(response.Plan.Raw))
+			if testCase.expectError {
+				expected := diag.Diagnostics{
+					diag.NewAttributeErrorDiagnostic(
+						path.Root("script_id"),
+						"Cannot change script_id after creation",
+						`Attribute "script_id" cannot be changed for an existing device because it is only applied during creation.`,
+					),
+				}
+				assert.True(t, response.Diagnostics.Equal(expected), "unexpected diagnostics: %v", response.Diagnostics)
+			} else {
+				assert.False(t, response.Diagnostics.HasError(), "unexpected diagnostics: %v", response.Diagnostics)
+			}
+		})
+	}
+}
+
 func TestResourceXelonDevice_Create_RequiresPasswordOrUserData(t *testing.T) {
 	ctx := context.Background()
 	deviceSchema := testDeviceResourceSchema(t)
@@ -326,6 +485,22 @@ func TestResourceXelonDevice_Model_FromAPI_PopulatesComputedNetworkIPv4(t *testi
 	}, nil)
 
 	assert.Equal(t, expected, actual.Networks)
+}
+
+func TestResourceXelonDevice_Model_FromAPI_PreservesScriptID(t *testing.T) {
+	testCases := map[string]types.String{
+		"untracked or imported state":    types.StringNull(),
+		"tracked create-time-only state": types.StringValue("script-a"),
+	}
+
+	for name, scriptID := range testCases {
+		t.Run(name, func(t *testing.T) {
+			model := deviceResourceModel{ScriptID: scriptID}
+			model.fromAPI(context.Background(), &xelon.Device{ID: "device-id"}, nil, nil)
+
+			assert.Equal(t, scriptID, model.ScriptID)
+		})
+	}
 }
 
 func TestResourceXelonDevice_Model_FromAPI_MapsManagedSSHKeyObservation(t *testing.T) {

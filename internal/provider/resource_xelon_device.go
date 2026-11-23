@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/hashicorp/terraform-plugin-framework-timeouts/resource/timeouts"
+	"github.com/hashicorp/terraform-plugin-framework-validators/stringvalidator"
 	"github.com/hashicorp/terraform-plugin-framework/path"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
@@ -15,6 +16,7 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/int64planmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/planmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/stringplanmodifier"
+	"github.com/hashicorp/terraform-plugin-framework/schema/validator"
 	"github.com/hashicorp/terraform-plugin-framework/types"
 	"github.com/hashicorp/terraform-plugin-log/tflog"
 
@@ -204,10 +206,15 @@ Devices are the virtual machines that run your applications.
 				},
 			},
 			"script_id": schema.StringAttribute{
-				MarkdownDescription: "The ID of the script to be executed during the device setup.",
-				Optional:            true,
+				MarkdownDescription: "The ID of an existing script to apply when the device is created. " +
+					"This value is only applied during creation and cannot be changed afterwards. " +
+					"It cannot be recovered when importing an existing device.",
+				Optional: true,
 				PlanModifiers: []planmodifier.String{
 					stringplanmodifier.UseStateForUnknown(),
+				},
+				Validators: []validator.String{
+					stringvalidator.LengthAtLeast(1),
 				},
 			},
 			"ssh_key_id": schema.StringAttribute{
@@ -320,6 +327,7 @@ func (r *deviceResource) Create(ctx context.Context, request resource.CreateRequ
 		Password:             data.Password.ValueString(),
 		PasswordConfirmation: data.Password.ValueString(),
 		RAM:                  int(data.Memory.ValueInt64()),
+		ScriptID:             data.ScriptID.ValueString(),
 		SwapDiskSize:         int(data.SwapDiskSize.ValueInt64()),
 		TemplateID:           data.TemplateID.ValueString(),
 		TenantID:             data.TenantID.ValueString(),
@@ -686,9 +694,21 @@ func (r *deviceResource) ModifyPlan(ctx context.Context, request resource.Modify
 			return
 		}
 
-		requiresCreateInputs = !plan.Password.Equal(state.Password) ||
-			!plan.TemplateID.Equal(state.TemplateID) ||
+		requiresReplacement := !plan.TemplateID.Equal(state.TemplateID) ||
 			!plan.UserData.Equal(state.UserData)
+		// Removing an unobservable password does not require replacement.
+		requiresReplacement = requiresReplacement || (!plan.Password.IsNull() && !plan.Password.Equal(state.Password))
+		requiresCreateInputs = requiresReplacement || !plan.Password.Equal(state.Password)
+
+		// This is a one-shot create instruction, not durable remote state.
+		// Allow a new value only when another attribute already requires replacement.
+		if !requiresReplacement && !plan.ScriptID.IsUnknown() && !plan.ScriptID.Equal(state.ScriptID) {
+			response.Diagnostics.AddAttributeError(
+				path.Root("script_id"),
+				"Cannot change script_id after creation",
+				`Attribute "script_id" cannot be changed for an existing device because it is only applied during creation.`,
+			)
+		}
 	}
 	if !requiresCreateInputs {
 		return
