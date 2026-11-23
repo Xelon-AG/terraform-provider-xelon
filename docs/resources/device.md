@@ -57,7 +57,7 @@ resource "xelon_device" "server" {
 - `enable_monitoring` (Boolean, Deprecated) Whether to enable monitoring for the device.
 - `memory_hotplug` (Boolean) If `true`, enables memory hot‑plug functionality for the device. It allows dynamically increasing or decreasing the amount of RAM without powering off the device.
 - `password` (String, Sensitive) The password for the device root or administrator user. Required if `user_data` is empty.
-- `script_id` (String) The ID of the script to be executed during the device setup.
+- `script_id` (String) The ID of an existing script to apply when the device is created. This value is only applied during creation and cannot be changed afterwards. It cannot be recovered when importing an existing device.
 - `send_email` (Boolean) Whether to send an email notification upon successful device creation.
 - `ssh_key_id` (String) The ID of the SSH key assigned to the device. Additional SSH keys may be assigned using the SSH key resource. Changing or removing this value updates only this assignment without replacing the device.
 - `swap_disk_size` (Number) The size of the swap disk in GB. Required if `user_data` is empty.
