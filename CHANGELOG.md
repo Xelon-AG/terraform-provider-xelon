@@ -1,8 +1,4 @@
 
-## Unreleased
-### Features
-* **datasource/xelon_firewall**: add firewall lookup
-
 ## v1.10.1 (2026-10-06)
 ### Bug Fixes
 * **resource/xelon_device**: manage ssh key assignment in place

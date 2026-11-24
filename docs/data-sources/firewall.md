@@ -3,28 +3,40 @@
 page_title: "xelon_firewall Data Source - terraform-provider-xelon"
 subcategory: ""
 description: |-
-  The firewall data source provides information about an existing Xelon firewall.
+  The firewall data source provides information about an existing Xelon firewall. Firewalls can be selected by ID or by an exact, case-sensitive name. Name lookup fails if zero or multiple firewalls match.
 ---
 
 # xelon_firewall (Data Source)
 
-The firewall data source provides information about an existing Xelon firewall.
+The firewall data source provides information about an existing Xelon firewall. Firewalls can be selected by ID or by an exact, case-sensitive name. Name lookup fails if zero or multiple firewalls match.
 
 ## Example Usage
+
+```terraform
+data "xelon_firewall" "existing" {
+  name = "frontend"
+}
+
+resource "xelon_firewall_forwarding_rule" "https" {
+  firewall_id = data.xelon_firewall.existing.id
+
+  protocol = "tcp"
+  type     = "inbound"
+
+  destination_ipv4_addresses = ["10.0.0.50"]
+  source_ipv4_addresses      = ["0.0.0.0/0"]
+  from_port                  = 443
+  to_port                    = 443
+}
+```
+
+The `name` selector uses exact, case-sensitive matching. The lookup fails when zero or multiple firewalls have the configured name; use `id` to disambiguate duplicate names.
 
 ### Using ID
 
 ```terraform
 data "xelon_firewall" "frontend" {
   id = "90531b0df9"
-}
-```
-
-### Using name
-
-```terraform
-data "xelon_firewall" "frontend" {
-  name = "frontend firewall"
 }
 ```
 
@@ -43,7 +55,7 @@ data "xelon_firewall" "frontend" {
 ### Optional
 
 - `id` (String) The ID of the firewall.
-- `name` (String) The firewall name.
+- `name` (String) The exact, case-sensitive firewall name. Name lookup fails if zero or multiple firewalls match.
 
 ### Read-Only
 

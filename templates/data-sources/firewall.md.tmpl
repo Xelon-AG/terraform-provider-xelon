@@ -12,13 +12,13 @@ description: |-
 
 ## Example Usage
 
+{{ tffile "examples/data-sources/xelon_firewall/data-source_with_name.tf" }}
+
+The `name` selector uses exact, case-sensitive matching. The lookup fails when zero or multiple firewalls have the configured name; use `id` to disambiguate duplicate names.
+
 ### Using ID
 
 {{ tffile "examples/data-sources/xelon_firewall/data-source_with_id.tf" }}
-
-### Using name
-
-{{ tffile "examples/data-sources/xelon_firewall/data-source_with_name.tf" }}
 
 ### Using ID and name
 
