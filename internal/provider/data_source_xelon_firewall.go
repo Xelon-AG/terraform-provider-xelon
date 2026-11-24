@@ -3,10 +3,12 @@ package provider
 import (
 	"context"
 	"fmt"
+	"iter"
 	"net/http"
 
 	"github.com/hashicorp/terraform-plugin-framework/datasource"
 	"github.com/hashicorp/terraform-plugin-framework/datasource/schema"
+	"github.com/hashicorp/terraform-plugin-framework/diag"
 	"github.com/hashicorp/terraform-plugin-framework/types"
 	"github.com/hashicorp/terraform-plugin-log/tflog"
 
@@ -44,7 +46,7 @@ func (d *firewallDataSource) Metadata(_ context.Context, _ datasource.MetadataRe
 func (d *firewallDataSource) Schema(_ context.Context, _ datasource.SchemaRequest, response *datasource.SchemaResponse) {
 	response.Schema = schema.Schema{
 		MarkdownDescription: `
-The firewall data source provides information about an existing Xelon firewall.
+The firewall data source provides information about an existing Xelon firewall. Firewalls can be selected by ID or by an exact, case-sensitive name. Name lookup fails if zero or multiple firewalls match.
 `,
 		Attributes: map[string]schema.Attribute{
 			"cloud_id": schema.StringAttribute{
@@ -65,7 +67,7 @@ The firewall data source provides information about an existing Xelon firewall.
 				Computed:            true,
 			},
 			"name": schema.StringAttribute{
-				MarkdownDescription: "The firewall name.",
+				MarkdownDescription: "The exact, case-sensitive firewall name. Name lookup fails if zero or multiple firewalls match.",
 				Computed:            true,
 				Optional:            true,
 			},
@@ -113,79 +115,115 @@ func (d *firewallDataSource) Read(ctx context.Context, request datasource.ReadRe
 		return
 	}
 
+	var firewall *xelon.Firewall
 	if firewallID != "" {
-		tflog.Info(ctx, "Searching for firewall by ID", map[string]any{"firewall_id": firewallID})
-
-		tflog.Debug(ctx, "Getting firewall", map[string]any{"firewall_id": firewallID})
-		firewall, resp, err := d.client.Firewalls.Get(ctx, firewallID)
-		if err != nil {
-			if resp != nil && resp.StatusCode == http.StatusNotFound {
-				response.Diagnostics.AddError("No search results", "Please refine your search.")
-				return
-			}
-			response.Diagnostics.AddError("Unable to get firewall", err.Error())
-			return
-		}
-		tflog.Debug(ctx, "Got firewall", map[string]any{"data": firewall})
-
-		// if name is defined check that it's equal
-		if firewallName != "" && firewallName != firewall.Name {
-			response.Diagnostics.AddError(
-				"Ambiguous search result",
-				fmt.Sprintf("Specified and actual firewall name are different: expected '%s', got '%s'.", firewallName, firewall.Name),
-			)
-			return
-		}
-
-		// map response body to attributes
-		data.CloudID = types.StringValue(firewall.Cloud.ID)
-		data.ExternalIPAddress = types.StringValue(firewall.ExternalIPAddress)
-		data.ID = types.StringValue(firewall.ID)
-		data.InternalIPAddress = types.StringValue(firewall.InternalIPAddress)
-		data.Name = types.StringValue(firewall.Name)
-		data.TenantID = types.StringValue(firewall.Tenant.ID)
+		firewall, diags = d.lookupByID(ctx, firewallID, firewallName)
 	} else {
-		tflog.Info(ctx, "Searching for firewall by name", map[string]any{"firewall_name": firewallName})
-
-		tflog.Debug(ctx, "Getting firewalls", map[string]any{"firewall_name": firewallName})
-		firewalls, _, err := d.client.Firewalls.List(ctx, &xelon.FirewallListOptions{Search: firewallName})
-		if err != nil {
-			response.Diagnostics.AddError("Unable to search firewalls by name", err.Error())
-			return
-		}
-		tflog.Debug(ctx, "Got firewalls", map[string]any{"data": firewalls})
-
-		if len(firewalls) == 0 {
-			response.Diagnostics.AddError("No search results", "Please refine your search.")
-			return
-		}
-		if len(firewalls) > 1 {
-			response.Diagnostics.AddError(
-				"Too many search results",
-				fmt.Sprintf("Please refine your search to be more specific. Found %v firewalls.", len(firewalls)),
-			)
-			return
-		}
-
-		firewall := &firewalls[0]
-		// enrich data because not all fields are exposed via list API
-		tflog.Debug(ctx, "Getting firewall", map[string]any{"firewall_id": firewall.ID})
-		firewall, _, err = d.client.Firewalls.Get(ctx, firewall.ID)
-		if err != nil {
-			response.Diagnostics.AddError("Unable to get firewall", err.Error())
-			return
-		}
-		tflog.Debug(ctx, "Got firewall", map[string]any{"data": firewall})
-
-		// map response body to attributes
-		data.CloudID = types.StringValue(firewall.Cloud.ID)
-		data.ExternalIPAddress = types.StringValue(firewall.ExternalIPAddress)
-		data.ID = types.StringValue(firewall.ID)
-		data.InternalIPAddress = types.StringValue(firewall.InternalIPAddress)
-		data.Name = types.StringValue(firewall.Name)
-		data.TenantID = types.StringValue(firewall.Tenant.ID)
+		firewall, diags = d.lookupByName(ctx, firewallName)
 	}
+	response.Diagnostics.Append(diags...)
+	if response.Diagnostics.HasError() {
+		return
+	}
+
+	data.CloudID = types.StringValue(firewall.Cloud.ID)
+	data.ExternalIPAddress = types.StringValue(firewall.ExternalIPAddress)
+	data.ID = types.StringValue(firewall.ID)
+	data.InternalIPAddress = types.StringValue(firewall.InternalIPAddress)
+	data.Name = types.StringValue(firewall.Name)
+	data.TenantID = types.StringValue(firewall.Tenant.ID)
 
 	diags = response.State.Set(ctx, &data)
 	response.Diagnostics.Append(diags...)
+}
+
+func (d *firewallDataSource) lookupByID(ctx context.Context, firewallID, expectedName string) (*xelon.Firewall, diag.Diagnostics) {
+	var diagnostics diag.Diagnostics
+
+	tflog.Debug(ctx, "reading firewall", map[string]any{"firewall_id": firewallID})
+
+	tflog.Trace(ctx, "getting firewall via API", map[string]any{"firewall_id": firewallID})
+	firewall, apiResponse, err := d.client.Firewalls.Get(ctx, firewallID)
+	if err != nil {
+		if apiResponse != nil && apiResponse.StatusCode == http.StatusNotFound {
+			diagnostics.AddError(
+				"Firewall not found",
+				fmt.Sprintf("No firewall with ID %q was found.", firewallID),
+			)
+			return nil, diagnostics
+		}
+		diagnostics.AddError("Unable to read firewall", err.Error())
+		return nil, diagnostics
+	}
+	tflog.Trace(ctx, "received firewall from API", map[string]any{
+		"firewall_id": firewall.ID,
+		"name":        firewall.Name,
+	})
+
+	if expectedName != "" && firewall.Name != expectedName {
+		diagnostics.AddError(
+			"Firewall name mismatch",
+			fmt.Sprintf("Firewall %q has name %q, not configured name %q.", firewallID, firewall.Name, expectedName),
+		)
+		return nil, diagnostics
+	}
+
+	return firewall, diagnostics
+}
+
+func (d *firewallDataSource) lookupByName(ctx context.Context, firewallName string) (*xelon.Firewall, diag.Diagnostics) {
+	var diagnostics diag.Diagnostics
+
+	tflog.Debug(ctx, "reading firewall", map[string]any{"name": firewallName})
+
+	tflog.Trace(ctx, "listing firewalls via API")
+	firewalls, errf := d.client.Firewalls.All(ctx, nil)
+	match, matchCount := findFirewallByName(firewalls, firewallName)
+	if err := errf(); err != nil {
+		diagnostics.AddError("Unable to read firewall", err.Error())
+		return nil, diagnostics
+	}
+
+	switch matchCount {
+	case 0:
+		diagnostics.AddError(
+			"Firewall not found",
+			fmt.Sprintf("No firewall with name %q was found. Names are matched exactly and case-sensitively.", firewallName),
+		)
+		return nil, diagnostics
+	case 1:
+		// The list response does not expose all fields needed for state, so fetch full details.
+		tflog.Trace(ctx, "getting firewall via API", map[string]any{"firewall_id": match.ID})
+		firewall, _, err := d.client.Firewalls.Get(ctx, match.ID)
+		if err != nil {
+			diagnostics.AddError("Unable to read firewall", err.Error())
+			return nil, diagnostics
+		}
+		tflog.Trace(ctx, "received firewall from API", map[string]any{
+			"firewall_id": firewall.ID,
+			"name":        firewall.Name,
+		})
+
+		return firewall, diagnostics
+	default:
+		diagnostics.AddError(
+			"Ambiguous firewall",
+			fmt.Sprintf("Found %d firewalls named %q. Use `id` to select a specific firewall.", matchCount, firewallName),
+		)
+		return nil, diagnostics
+	}
+}
+
+func findFirewallByName(firewalls iter.Seq2[xelon.Firewall, *xelon.Response], name string) (*xelon.Firewall, int) {
+	var match *xelon.Firewall
+	matchCount := 0
+
+	for firewall := range firewalls {
+		if firewall.Name == name {
+			match = &firewall
+			matchCount++
+		}
+	}
+
+	return match, matchCount
 }

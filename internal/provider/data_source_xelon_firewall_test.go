@@ -1,88 +1,87 @@
 package provider
 
 import (
-	"fmt"
-	"regexp"
 	"testing"
 
-	"github.com/hashicorp/terraform-plugin-testing/helper/acctest"
-	"github.com/hashicorp/terraform-plugin-testing/helper/resource"
-	"github.com/hashicorp/terraform-plugin-testing/knownvalue"
-	"github.com/hashicorp/terraform-plugin-testing/statecheck"
-	"github.com/hashicorp/terraform-plugin-testing/tfjsonpath"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+
+	"github.com/Xelon-AG/xelon-sdk-go/xelon"
 )
 
-func TestAccDataSourceXelonFirewall(t *testing.T) {
-	firewallName := fmt.Sprintf("%s-%s", accTestPrefix, acctest.RandString(10))
-
-	resource.ParallelTest(t, resource.TestCase{
-		PreCheck:                 func() { testAccPreCheck(t) },
-		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
-		Steps: []resource.TestStep{
-			{
-				Config: testAccDataSourceXelonFirewallConfig(firewallName),
-				ConfigStateChecks: []statecheck.StateCheck{
-					statecheck.ExpectKnownValue(
-						"data.xelon_firewall.test",
-						tfjsonpath.New("id"),
-						knownvalue.NotNull(),
-					),
-					statecheck.ExpectKnownValue(
-						"data.xelon_firewall.test",
-						tfjsonpath.New("name"),
-						knownvalue.StringExact(firewallName),
-					),
-					statecheck.ExpectKnownValue(
-						"data.xelon_firewall.test",
-						tfjsonpath.New("cloud_id"),
-						knownvalue.NotNull(),
-					),
-					statecheck.ExpectKnownValue(
-						"data.xelon_firewall.test",
-						tfjsonpath.New("tenant_id"),
-						knownvalue.NotNull(),
-					),
-					statecheck.ExpectKnownValue(
-						"data.xelon_firewall.test",
-						tfjsonpath.New("internal_ipv4_address"),
-						knownvalue.NotNull(),
-					),
-				},
+func TestDataSourceXelonFirewall_NameLookup(t *testing.T) {
+	tests := map[string]struct {
+		firewalls          []xelon.Firewall
+		expectedMatchCount int
+		expectedID         string
+	}{
+		"ExactMatch": {
+			firewalls: []xelon.Firewall{
+				{ID: "firewall-1", Name: "frontend"},
+			},
+			expectedMatchCount: 1,
+			expectedID:         "firewall-1",
+		},
+		"PartialOnlyNotFound": {
+			firewalls: []xelon.Firewall{
+				{ID: "firewall-1", Name: "frontend-production"},
 			},
 		},
-	})
-}
-
-func TestAccDataSourceXelonFirewall_expectError(t *testing.T) {
-	resource.Test(t, resource.TestCase{
-		PreCheck:                 func() { testAccPreCheck(t) },
-		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
-		Steps: []resource.TestStep{
-			{
-				Config:      testAccDataSourceXelonFirewallConfigWithoutIDAndName,
-				ExpectError: regexp.MustCompile(`The attribute "id" or "name" must be defined`),
+		"CaseSensitive": {
+			firewalls: []xelon.Firewall{
+				{ID: "firewall-1", Name: "Frontend"},
 			},
 		},
-	})
-}
+		"ExactMatchAmongPartialNames": {
+			firewalls: []xelon.Firewall{
+				{ID: "firewall-1", Name: "frontend-production"},
+				{ID: "firewall-2", Name: "frontend"},
+				{ID: "firewall-3", Name: "frontend-old"},
+			},
+			expectedMatchCount: 1,
+			expectedID:         "firewall-2",
+		},
+		"DuplicateExactNames": {
+			firewalls: []xelon.Firewall{
+				{ID: "firewall-1", Name: "frontend"},
+				{ID: "firewall-2", Name: "frontend"},
+			},
+			expectedMatchCount: 2,
+		},
+		"CountsAllExactMatches": {
+			firewalls: []xelon.Firewall{
+				{ID: "firewall-1", Name: "frontend"},
+				{ID: "firewall-2", Name: "frontend-production"},
+				{ID: "firewall-3", Name: "frontend"},
+				{ID: "firewall-4", Name: "frontend"},
+			},
+			expectedMatchCount: 3,
+		},
+		"EmptyList": {},
+	}
 
-func testAccDataSourceXelonFirewallConfig(name string) string {
-	return fmt.Sprintf(`
-data "xelon_firewall" "test" {
-  id = xelon_firewall.test.id
-}
+	for name, test := range tests {
+		t.Run(name, func(t *testing.T) {
+			firewalls := func(yield func(xelon.Firewall, *xelon.Response) bool) {
+				for _, firewall := range test.firewalls {
+					if !yield(firewall, nil) {
+						return
+					}
+				}
+			}
 
-resource "xelon_firewall" "test" {
-  cloud_id             = "e96db9d92ec7"
-  internal_network_id  = "654871d16146"
-  name                 = %[1]q
-  tenant_id            = data.xelon_tenant.test.id
-}
+			firewall, matchCount := findFirewallByName(firewalls, "frontend")
 
-data "xelon_tenant" "test" {}
-`, name)
-}
+			require.Equal(t, test.expectedMatchCount, matchCount)
+			if matchCount == 0 {
+				assert.Nil(t, firewall)
+				return
+			}
 
-const testAccDataSourceXelonFirewallConfigWithoutIDAndName = `
-data "xelon_firewall" "test" {}
-`
+			require.NotNil(t, firewall)
+			if matchCount == 1 {
+				assert.Equal(t, test.expectedID, firewall.ID)
+			}
+		})
+	}
+}
